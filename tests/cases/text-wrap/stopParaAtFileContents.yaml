@@ -1,0 +1,11 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: -1
+        blocksFollow:
+           other: 0
+           filecontents: 1
+        blocksEndBefore:
+           filecontents: 1
+           other: |-
+             (?x)
+             \\begin\{filecontents

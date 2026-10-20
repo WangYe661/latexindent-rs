@@ -1,0 +1,18 @@
+defaultIndent: "  "
+
+noAdditionalIndent:
+  document: 0
+
+indentAfterHeadings:
+  section:
+    lookForThis: 1
+    level: 3
+    blocksEndBefore: |-
+      (?x)
+        \\end\{document\}
+  subsection:
+    lookForThis: 1
+    level: 4
+  subsection*:
+    lookForThis: 0
+    level: 4

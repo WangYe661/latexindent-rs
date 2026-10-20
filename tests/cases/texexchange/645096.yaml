@@ -1,0 +1,3 @@
+defaultIndent: ' '
+noAdditionalIndentGlobal:
+    UnNamedGroupingBracesBrackets: 1

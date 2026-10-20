@@ -1,0 +1,17 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: -1
+        blocksEndBefore:
+           verbatim: 0
+        blocksFollow:
+           verbatim: 0
+
+noIndentBlock:
+    href:
+        begin: '\\href\{[^}]*?\}\{'
+        body: '[^}]*?'
+        end: '\}'
+        lookForThis: 0
+
+removeTrailingWhitespace:
+    beforeProcessing: 1

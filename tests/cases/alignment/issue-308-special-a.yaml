@@ -1,0 +1,5 @@
+defaultIndent: "  "
+lookForAlignDelims:
+  displayMath:
+    dontMeasure: largest
+    lookForChildCodeBlocks: 0

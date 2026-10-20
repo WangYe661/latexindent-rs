@@ -1,0 +1,20 @@
+specialBeginEnd:
+    leftRightRound:
+        begin: '\\left\('
+        end: '\\right\)'
+        nested: 1
+    leftRightSquare:
+        begin: '\\left\['
+        end: '\\right\]'
+        nested: 1
+    leftRightCurly:
+        begin: '\\left\\\{'
+        end: '\\right\\\}'
+        nested: 1
+
+fineTuning:
+  commands:
+    name: (?!begin|end|left)[+a-zA-Z@\*0-9_\:]+
+
+logFilePreferences:
+  showAmalgamatedSettings: 1

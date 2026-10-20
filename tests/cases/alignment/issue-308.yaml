@@ -1,0 +1,12 @@
+defaultIndent: "  "
+lookForAlignDelims:
+  tabular:
+    dontMeasure: largest
+
+fineTuning:
+  arguments:
+    between: |-                               #
+      (?x)                                    #
+      (?:                                     # 
+        [_^*#0-9(),+-<>]                      #
+      )                                       #

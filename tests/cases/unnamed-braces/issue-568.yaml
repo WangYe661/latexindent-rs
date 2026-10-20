@@ -1,0 +1,6 @@
+defaultIndent: '  '
+
+specialBeginEnd:
+  senniraf:
+    begin: \{\h*(?:\[|\])\}
+    end: ''

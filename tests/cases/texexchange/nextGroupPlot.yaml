@@ -1,0 +1,15 @@
+indentAfterItems:
+    groupplot: 1
+itemNames:
+    nextgroupplot: 1
+fineTuning:
+  items:
+    itemRegEx: |-
+      (?x)
+      (?:
+        \\(?:item|myitem)
+      )
+      |
+      (?:
+        \\nextgroupplot(?!\h\[) 
+      )

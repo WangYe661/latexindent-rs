@@ -1,0 +1,21 @@
+modifyLineBreaks:
+    preserveBlankLines: 1
+    condenseMultipleBlankLinesInto: 1
+    commands:
+        CommandStartsOnOwnLine: 2
+        emph:
+            CommandStartsOnOwnLine: 0
+    mandatoryArguments:
+        RCuBFinishesWithLineBreak: 1
+        emph:
+            RCuBFinishesWithLineBreak: 0
+
+indentAfterHeadings:
+  chapter:
+    blocksEndBefore: |-
+      (?x)
+        \\end\{myenv\}
+  section:
+    blocksEndBefore: |-
+      (?x)
+        \\end\{myenv\}

@@ -1,0 +1,6 @@
+indentRules:
+    yetanotheritem: "                "
+
+fineTuning:
+  items:
+    itemRegEx: \\(?:item|myitem|yetanotheritem)

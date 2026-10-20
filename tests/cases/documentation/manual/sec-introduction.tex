@@ -1,0 +1,317 @@
+% arara: pdflatex: { files: [latexindent]}
+\section{Introduction}
+
+\subsection{License}
+ \texttt{latexindent.pl} is free and open source, and it always will be; it
+ is released under the GNU General Public License v3.0.
+
+ Before you start using it on any important files, bear in mind that
+ \texttt{latexindent.pl} has the option to overwrite your \texttt{.tex} files. It will
+ always make at least one backup (you can choose how many it makes, see
+ \cpageref{page:onlyonebackup}) but you should still be careful when using it. The script
+ has been tested on many files, but there are some known limitations (see
+ \cref{sec:knownlimitations}). You, the user, are responsible for ensuring that you
+ maintain backups of your files before running \texttt{latexindent.pl} on them. I think
+ it is important at this stage to restate an important part of the license here:
+ \begin{quote}\itshape
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU General Public License for more details.
+ \end{quote}
+ There is certainly no malicious intent in releasing this script, and I do hope that it
+ works as you expect it to; if it does not, please first of all make sure that you have
+ the correct settings, and then feel free to let me know at \cite{latexindent-home} with
+ a complete minimum working example as I would like to improve the code as much as
+ possible.
+
+ \begin{warning}
+  Before you try the script on anything important (like your thesis), test it out on the
+  sample files in the \texttt{test-case} directory \cite{latexindent-home}.
+  \index{warning!be sure to test before use}
+ \end{warning}
+
+\subsection{Quick start}\label{sec:quickstart}
+ When \texttt{latexindent.pl} reads and writes files, the files are read and written in UTF-8 format by default.
+ That is to say, the encoding format for tex and yaml files needs to be in UTF-8 format.
+
+ If you'd like to get started with \texttt{latexindent.pl} then simply type
+
+ \begin{commandshell}
+latexindent.pl myfile.tex
+\end{commandshell}
+
+ from the command line.
+
+ We give an introduction to \texttt{latexindent.pl} using \cref{lst:quick-start}; there
+ is no explanation in this section, which is deliberate for a quick start. The rest of
+ the manual is more verbose.
+
+ \cmhlistingsfromfile{demonstrations/quick-start.tex}{\texttt{quick-start.tex}}{lst:quick-start}
+
+ Running
+
+ \begin{commandshell}
+latexindent.pl quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-default}.
+
+ \cmhlistingsfromfile{demonstrations/quick-start-default.tex}{\texttt{quick-start-default.tex}}{lst:quick-start-default}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -l quick-start1.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod1}.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile[showspaces=true]{demonstrations/quick-start-mod1.tex}{\texttt{quick-start-mod1.tex}}{lst:quick-start-mod1}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start1.yaml}[yaml-TCB]{\texttt{quick-start1.yaml}}{lst:quick-start1yaml}
+ \end{cmhtcbraster}
+ See \cref{subsec:indentation:and:horizontal:space}.
+ \end{example}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -l quick-start2.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod2}.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile[showspaces=true]{demonstrations/quick-start-mod2.tex}{\texttt{quick-start-mod2.tex}}{lst:quick-start-mod2}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start2.yaml}[yaml-TCB]{\texttt{quick-start2.yaml}}{lst:quick-start2yaml}
+ \end{cmhtcbraster}
+ See \cref{sec:noadd-indent-rules}.
+ \end{example}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -l quick-start3.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod3}.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile{demonstrations/quick-start-mod3.tex}{\texttt{quick-start-mod3.tex}}{lst:quick-start-mod3}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start3.yaml}[yaml-TCB]{\texttt{quick-start3.yaml}}{lst:quick-start3yaml}
+ \end{cmhtcbraster}
+ See \cref{sec:noadd-indent-rules}.
+ \end{example}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -m -l quick-start4.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod4}.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile{demonstrations/quick-start-mod4.tex}{\texttt{quick-start-mod4.tex}}{lst:quick-start-mod4}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start4.yaml}[MLB-TCB]{\texttt{quick-start4.yaml}}{lst:quick-start4yaml}
+ \end{cmhtcbraster}
+ Full details of text wrapping in \cref{subsec:textwrapping}.
+ \end{example}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -m -l quick-start5.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod5}.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile{demonstrations/quick-start-mod5.tex}{\texttt{quick-start-mod5.tex}}{lst:quick-start-mod5}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start5.yaml}[MLB-TCB]{\texttt{quick-start5.yaml}}{lst:quick-start5yaml}
+ \end{cmhtcbraster}
+ Full details of text wrapping in \cref{subsec:textwrapping}.
+ \end{example}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -m -l quick-start6.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod6}.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile{demonstrations/quick-start-mod6.tex}{\texttt{quick-start-mod6.tex}}{lst:quick-start-mod6}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start6.yaml}[MLB-TCB]{\texttt{quick-start6.yaml}}{lst:quick-start6yaml}
+ \end{cmhtcbraster}
+ This is an example of a \emph{poly-switch}; full details of \emph{poly-switches} are
+ covered in \cref{sec:poly-switches}.
+ \end{example}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -m -l quick-start7.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod7}.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile{demonstrations/quick-start-mod7.tex}{\texttt{quick-start-mod7.tex}}{lst:quick-start-mod7}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start7.yaml}[MLB-TCB]{\texttt{quick-start7.yaml}}{lst:quick-start7yaml}
+ \end{cmhtcbraster}
+ Full details of \emph{poly-switches} are covered in \cref{sec:poly-switches}.
+ \end{example}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -l quick-start8.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod8}; note that the \emph{preamble} has been indented.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile{demonstrations/quick-start-mod8.tex}{\texttt{quick-start-mod8.tex}}{lst:quick-start-mod8}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start8.yaml}[yaml-TCB]{\texttt{quick-start8.yaml}}{lst:quick-start8yaml}
+ \end{cmhtcbraster}
+
+ See \cref{subsec:filecontents:preamble}.
+
+ \end{example}
+
+ \begin{example}
+ Running
+
+ \begin{commandshell}
+latexindent.pl -l quick-start9.yaml quick-start.tex
+\end{commandshell}
+
+ gives \cref{lst:quick-start-mod9}.
+
+ \begin{cmhtcbraster}
+  \cmhlistingsfromfile{demonstrations/quick-start-mod9.tex}{\texttt{quick-start-mod9.tex}}{lst:quick-start-mod9}
+  \cmhlistingsfromfile[style=yaml-LST]{demonstrations/quick-start9.yaml}[yaml-TCB]{\texttt{quick-start9.yaml}}{lst:quick-start9yaml}
+ \end{cmhtcbraster}
+
+ See \cref{sec:noadd-indent-rules}.
+ \end{example}
+
+\subsection{Requirements}
+\subsubsection{Perl users}
+ Perl users will need a few standard Perl modules -- see \vref{sec:requiredmodules} for
+ details; \announce{2018-01-13}{perl module installer helper script} in particular, note
+ that a module installer helper script is shipped with \texttt{latexindent.pl}. You might
+ also like to see
+ \href{https://stackoverflow.com/questions/19590042/error-cant-locate-file-homedir-pm-in-inc}{https://stackoverflow.com/questions/19590042/error-cant-locate-file-homedir-pm-in-inc}.%
+
+\subsubsection{Windows users without perl}\label{subsubsec:latexindent:exe}
+ \texttt{latexindent.pl} ships with \texttt{latexindent.exe} for Windows
+ users, so that you can use the script with or without a Perl distribution.
+
+ \texttt{latexindent.exe} is available from \cite{latexindent-home}.
+
+ MiKTeX users on Windows may like to see \cite{miktex-guide} for details of how to use
+ \texttt{latexindent.exe} without a Perl installation. \index{MiKTeX}
+ \index{latexindent.exe} \index{Windows}
+
+\subsubsection{Ubuntu Linux users without perl}
+ \texttt{latexindent.pl} ships with \texttt{latexindent-linux} for Ubuntu
+ Linux users, so that you can use the script with or without a Perl distribution.
+ \index{latexindent-linux} \index{linux} \index{TeXLive}
+
+ \texttt{latexindent-linux} is available from \cite{latexindent-home}.
+ \announce{2022-10-30}{Linux Ubuntu standalone executable}
+
+\subsubsection{macOS users without perl}
+ \texttt{latexindent.pl} ships with \texttt{latexindent-macos} for macOS
+ users, so that you can use the script with or without a Perl distribution.
+ \index{latexindent-macos} \index{macOS} \index{TeXLive}
+
+ \texttt{latexindent-macOS} is available from \cite{latexindent-home}.
+ \announce{2022-10-30}{macOS standalone executable}
+
+\subsubsection{conda users}
+ Users of \texttt{conda} should see the details given in \cref{sec:app:conda}.
+ \index{conda}
+
+\subsubsection{docker users}
+ Users of \texttt{docker} should see the details given in \cref{sec:app:docker}.
+ \index{docker}
+
+\subsection{About this documentation}
+ As you read through this documentation, you will see many listings; in this version of
+ the documentation, there are a total of \totallstlistings. This may seem a lot, but I
+ deem it necessary in presenting the various different options of \texttt{latexindent.pl}
+ and the associated output that they are capable of producing.
+
+ The different listings are presented using different styles:
+
+ \begin{widepage}
+  \begin{minipage}{.4\linewidth}
+   \cmhlistingsfromfile{demonstrations/demo-tex.tex}{\texttt{demo-tex.tex}}{lst:demo-tex}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}{.4\linewidth}
+   This type of listing is a \texttt{.tex} file.
+  \end{minipage}%
+
+  \begin{minipage}{.4\linewidth}
+   \cmhlistingsfromfile[style=fileExtensionPreference]{../defaultSettings.yaml}[width=.8\linewidth,before=\centering,yaml-TCB]{\texttt{fileExtensionPreference}}{lst:fileExtensionPreference-demo}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}{.4\linewidth}
+   This type of listing is a \texttt{.yaml} file; when you see line numbers given (as here)
+   it means that the snippet is taken directly from \texttt{defaultSettings.yaml}, discussed in
+   detail in \vref{sec:defuseloc}.
+  \end{minipage}%
+
+  \begin{minipage}{.6\linewidth}
+   \cmhlistingsfromfile[style=modifylinebreaks]{../defaultSettings.yaml}[MLB-TCB,width=.95\linewidth,before=\centering]{\texttt{modifyLineBreaks}}{lst:modifylinebreaks-demo}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}{.4\linewidth}
+   This type of listing is a \texttt{.yaml} file, but it will only
+   be relevant when the \texttt{-m} switch is active; see \vref{sec:modifylinebreaks}
+   for more details.
+  \end{minipage}%
+
+  \begin{minipage}{.6\linewidth}
+   \cmhlistingsfromfile[style=replacements]{../defaultSettings.yaml}[replace-TCB,width=.95\linewidth,before=\centering]{\texttt{replacements}}{lst:replacements-demo}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}{.4\linewidth}
+   This type of listing is a \texttt{.yaml} file, but it will only
+   be relevant when the \texttt{-r} switch is active; see \vref{sec:replacements}
+   for more details.
+  \end{minipage}%
+ \end{widepage}
+
+ % \begin{latexonly}
+ You will occasionally see dates shown in the margin (for example, next to this
+ paragraph!) \announce{2017-06-25}{announce} which detail the date of the version in
+ which the feature was implemented; the `N' stands for `new as of the date shown' and `U'
+ stands for `updated as of the date shown'. If you see \stardemo, it means that the
+ feature is either new (N) or updated (U) as of the release of the current version; if
+ you see \stardemo\, attached to a listing, then it means that listing is new (N) or
+ updated (U) as of the current version. If you have not read this document before (and
+ even if you have!), then you can ignore every occurrence of the \stardemo; they are
+ simply there to highlight new and updated features. The new and updated features in this
+ documentation (\gitRel) are on the following pages: \listOfNewFeatures% % \end{latexonly}
+
+\subsection{A word about regular expressions}
+ \index{regular expressions!a word about}
+ As you read this documentation, you may encounter the term \emph{regular expressions}.
+ I've tried to write this documentation in such a way so as to allow you to engage with
+ them or not, as you prefer. This documentation is not designed to be a guide to regular
+ expressions, and if you'd like to read about them, I recommend \cite{masteringregexp}.

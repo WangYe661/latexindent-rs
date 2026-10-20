@@ -1,0 +1,4 @@
+indentAfterHeadings:
+    paragraph:
+       lookForThis: 1
+       level: 1

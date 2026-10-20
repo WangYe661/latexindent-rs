@@ -1,0 +1,6 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: 40
+        blocksFollow:
+           other: |-
+             (?x)\\begin\{(?:something)\}

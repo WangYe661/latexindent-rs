@@ -1,0 +1,9 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: 80
+        beforeFindingChildCodeBlocks: 0
+        perCodeBlockBasis: 1
+        mainDocument: 1
+    removeParagraphLineBreaks:
+        mainDocument: 1
+        beforeTextWrap: 1

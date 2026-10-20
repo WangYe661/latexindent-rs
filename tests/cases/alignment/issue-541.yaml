@@ -1,0 +1,15 @@
+modifyLineBreaks:
+  optionalArguments:
+    tblr:
+      OptArgBodyStartsOnOwnLine: 1        # -1,0,1,2,3,4
+fineTuning:
+  keyEqualsValuesBracesBrackets:
+    name: |-
+      (?x)
+      [a-zA-Z@\*0-9_\/.:\#-]+
+      (?:
+        [a-zA-Z@\*0-9_\/.\h:\#-]
+        \{
+          [a-zA-Z@\*0-9_\/.\h:\#-,]+?
+        \}
+      )*?

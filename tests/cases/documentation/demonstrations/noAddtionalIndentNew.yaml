@@ -1,0 +1,5 @@
+specialBeginEnd:
+  - name: displayMath
+    begin: '\\\['
+    end: '\\\]'
+    lookForThis: 0

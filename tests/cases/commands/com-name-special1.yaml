@@ -1,0 +1,5 @@
+specialBeginEnd:
+  - name: ifnextchar
+    begin: \@ifnextchar
+    end: \[
+    lookForThis: verbatim

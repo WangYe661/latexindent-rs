@@ -1,0 +1,27 @@
+indentAfterItems:
+    itemize*: 1
+
+modifyLineBreaks:
+    environments:
+        DBSFinishesWithLineBreak: 1
+    items:
+        ItemStartsOnOwnLine: 1
+    textWrapOptions:
+        columns: -1
+        blocksFollow:
+           other: |-
+             (?x) \\begin\{equation\}
+        blocksBeginWith:
+           other: |-
+             (?x) \\ell
+
+replacements:
+  -
+    substitution: s/\h*\R\h*_/_/sg
+    when: after
+  -
+    substitution: s/\h*_/_/sg
+    when: after
+  -
+    substitution: s/([a-zA-Z:\}])\h*(=|-)\h*/$1 $2 /sg
+    when: after

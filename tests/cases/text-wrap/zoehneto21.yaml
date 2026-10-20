@@ -1,0 +1,12 @@
+indentPreamble: 1
+
+modifyLineBreaks:
+    textWrapOptions:
+        columns: 80
+        blocksFollow:
+           other: |-
+             (?x)\\begin\{[^}]*?\}
+                 |
+                 \\item
+                 |
+                 \\documentclass\{[^}]*?\}

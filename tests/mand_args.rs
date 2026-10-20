@@ -1,0 +1,271 @@
+//! 必选参数（mand-args）测试，覆盖 tests/cases/mand-args/mand-args-test-cases.sh。
+mod common;
+use common::{check, check_overwrite, check_owned, report};
+
+const MA: &str = "../environments/env-all-on";
+
+#[test]
+fn before_loop() {
+    check_overwrite("mand-args", "env-first-mand-args.tex", &["-m", "-s"]);
+}
+
+#[test]
+fn loop_mand_args() {
+    for i in 1..=16 {
+        let m = format!("{MA},mand-args-mod{i}");
+        check_owned(
+            "mand-args",
+            "env-first-mand-args.tex",
+            &[
+                "-m".into(),
+                "-s".into(),
+                format!("-o=+-mod{i}"),
+                format!("-l={m}"),
+            ],
+            &format!("env-first-mand-args-mod{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-first-mand-args.tex",
+            &[
+                "-m".into(),
+                "-s".into(),
+                format!("-o=+-mod-supp{i}"),
+                format!("-l={m},mand-args-supp"),
+            ],
+            &format!("env-first-mand-args-mod-supp{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-first-mand-args-rm-lb1.tex",
+            &[
+                "-m".into(),
+                "-s".into(),
+                format!("-o=+-mod{i}"),
+                format!("-l={m}"),
+            ],
+            &format!("env-first-mand-args-rm-lb1-mod{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-first-mand-args-rm-lb1.tex",
+            &[
+                "-m".into(),
+                "-s".into(),
+                format!("-o=+-mod-supp{i}"),
+                format!("-l={m},mand-args-supp"),
+            ],
+            &format!("env-first-mand-args-rm-lb1-mod-supp{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-first-mand-args-rm-lb2.tex",
+            &[
+                "-m".into(),
+                "-s".into(),
+                format!("-o=+-mod-supp{i}"),
+                format!("-l={m},unprotect-blank-lines"),
+            ],
+            &format!("env-first-mand-args-rm-lb2-mod-supp{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-second-mand-args.tex",
+            &[
+                "-m".into(),
+                format!("-l={m}"),
+                "-s".into(),
+                format!("-o=+-mod{i}"),
+            ],
+            &format!("env-second-mand-args-mod{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-second-mand-args-rm-lb1.tex",
+            &[
+                "-m".into(),
+                format!("-l={m}"),
+                "-s".into(),
+                format!("-o=+-mod{i}"),
+            ],
+            &format!("env-second-mand-args-rm-lb1-mod{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-second-mand-args-rm-lb1.tex",
+            &[
+                "-m".into(),
+                format!("-l={m},unprotect-blank-lines"),
+                "-s".into(),
+                format!("-o=+-mod-unprotect{i}"),
+            ],
+            &format!("env-second-mand-args-rm-lb1-mod-unprotect{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-third-mand-args-rm-lb1-tc.tex",
+            &[
+                "-m".into(),
+                format!("-l={m}"),
+                "-s".into(),
+                format!("-o=+-mod{i}"),
+            ],
+            &format!("env-third-mand-args-rm-lb1-tc-mod{i}.tex"),
+        );
+        check_owned(
+            "mand-args",
+            "env-third-mand-args.tex",
+            &[
+                "-m".into(),
+                format!("-l={m},addPercentAfterBegin"),
+                "-s".into(),
+                format!("-o=+-mod{i}"),
+                "-g=other.log".into(),
+            ],
+            &format!("env-third-mand-args-mod{i}.tex"),
+        );
+    }
+    report();
+}
+
+#[test]
+fn loop_mand_args_condense() {
+    for i in 1..=16 {
+        let m = format!("{MA},mand-args-mod{i}");
+        check_owned("mand-args", "env-second-mand-args-rm-lb1.tex", &["-m".into(), format!("-l={m},unprotect-blank-lines,condense-blank-lines,../ifelsefi/removeTWS-before"), "-s".into(), format!("-o=+-mod-unprotect-condense{i}")], &format!("env-second-mand-args-rm-lb1-mod-unprotect-condense{i}.tex"));
+    }
+    report();
+}
+
+#[test]
+fn after_loop() {
+    check(
+        "mand-args",
+        "env-third-mand-args-rm-lb1-tc.tex",
+        &[
+            "-m",
+            "-l=../environments/env-all-on,mand-args-mod1,addPercentAfterBegin",
+            "-s",
+            "-o=env-third-mand-args-rm-lb1-tc-mod1-addPercentAfterBegin",
+        ],
+        "env-third-mand-args-rm-lb1-tc-mod1-addPercentAfterBegin.tex",
+    );
+    check(
+        "mand-args",
+        "env-third-mand-args.tex",
+        &[
+            "-l=../environments/env-all-on,mand-args-mod1,addPercentBeforeBegin",
+            "-m",
+            "-s",
+            "-o=+-percent-before-begin",
+        ],
+        "env-third-mand-args-percent-before-begin.tex",
+    );
+    check(
+        "mand-args",
+        "env-third-mand-args.tex",
+        &[
+            "-l=../environments/env-all-on,addPercentAfterEnd",
+            "-m",
+            "-s",
+            "-o=env-third-mand-args-percent-after-end",
+        ],
+        "env-third-mand-args-percent-after-end.tex",
+    );
+    check(
+        "mand-args",
+        "env-third-mand-args.tex",
+        &[
+            "-l=../environments/env-all-on,addPercentAfterBody",
+            "-m",
+            "-s",
+            "-o=env-third-mand-args-percent-after-body",
+        ],
+        "env-third-mand-args-percent-after-body.tex",
+    );
+    check(
+        "mand-args",
+        "env-first-mand-args-mod-supp1.tex",
+        &[
+            "-s",
+            "-m",
+            "-w",
+            "-l=../environments/env-all-on,addPercentAfterBody",
+            "-o=env-first-mand-args-mod-supp1-mod1",
+        ],
+        "env-first-mand-args-mod-supp1-mod1.tex",
+    );
+    check(
+        "mand-args",
+        "env-first-mand-args-more-comments.tex",
+        &[
+            "-s",
+            "-m",
+            "-l=../opt-args/opt-args-remove-all,../environments/env-all-on,addPercentAfterBegin",
+            "-o=env-first-mand-args-more-comments-addPercentAfterBegin",
+        ],
+        "env-first-mand-args-more-comments-addPercentAfterBegin.tex",
+    );
+    check(
+        "mand-args",
+        "env-third-mand-args.tex",
+        &[
+            "-l=../environments/env-all-on,addPercentAll",
+            "-m",
+            "-s",
+            "-o=env-third-mand-args-percent-after-all",
+        ],
+        "env-third-mand-args-percent-after-all.tex",
+    );
+    check(
+        "mand-args",
+        "env-third-mand-args.tex",
+        &[
+            "-l=../environments/env-all-on,addPercent-noAdditionalIndent",
+            "-m",
+            "-s",
+            "-o=env-third-mand-args-noAddtionalIndentScalar",
+        ],
+        "env-third-mand-args-noAddtionalIndentScalar.tex",
+    );
+    for k in 1..=4 {
+        check(
+            "mand-args",
+            "env-third-mand-args.tex",
+            &[
+                "-m",
+                "-s",
+                &format!(
+                    "-l=../environments/env-all-on,addPercent-noAdditionalIndent-mand-args-mod{k}"
+                ),
+                &format!("-o=env-third-mand-args-noAddtionalIndentHash-mod{k}"),
+            ],
+            &format!("env-third-mand-args-noAddtionalIndentHash-mod{k}.tex"),
+        );
+    }
+    for r in 1..=4 {
+        check("mand-args", "env-third-mand-args.tex", &["-m", "-s", &format!("-l=../environments/env-all-on,addPercent-noAdditionalIndent-mand-args-indent-rules{r}"), &format!("-o=env-third-mand-args-indent-rules{r}")], &format!("env-third-mand-args-indent-rules{r}.tex"));
+    }
+    check(
+        "mand-args",
+        "env-third-mand-args-mod1.tex",
+        &[
+            "-l=../environments/env-all-on,noAdditionalIndentGlobal",
+            "-s",
+            "-o=env-third-mand-args-mod1-global",
+            "-tt",
+        ],
+        "env-third-mand-args-mod1-global.tex",
+    );
+    check(
+        "mand-args",
+        "env-third-mand-args-mod1.tex",
+        &[
+            "-l=../environments/env-all-on,indentRulesGlobal",
+            "-s",
+            "-o=env-third-mand-args-mod1-indent-rules-global",
+            "-tt",
+        ],
+        "env-third-mand-args-mod1-indent-rules-global.tex",
+    );
+}
