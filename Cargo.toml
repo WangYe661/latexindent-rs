@@ -3,7 +3,7 @@ name = "latexindent-rs"
 version = "4.0.2"
 edition = "2021"
 description = "Rust port of latexindent.pl (beautify .tex/.sty/.cls/.bib files)"
-license = "GPL-3.0-or-later"
+license = "MIT"
 
 [[bin]]
 name = "latexindent-rs"
