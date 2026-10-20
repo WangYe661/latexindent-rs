@@ -1,0 +1,6 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: 40                     
+
+noAdditionalIndent:     #<--- NEW BIT
+  test: 1               #<--- NEW BIT

@@ -1,0 +1,8 @@
+specialBeginEnd:
+  - name: path
+    begin: '\\path'
+    end: ';'
+lookForAlignDelims:
+   path: 
+      delimiterRegEx: '(edge|node)'
+      lookForChildCodeBlocks: 0

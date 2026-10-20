@@ -1,0 +1,14 @@
+defaultIndent: "\t"
+
+specialBeginEnd:
+  customSection:
+    begin: \\(?:section|chapter)
+    end: \%\h+end
+    nested: 1
+
+fineTuning:
+  commands:
+    name: (?!chapter|section)[+a-zA-Z@\*0-9_\:]+
+  trailingComments:
+    notPrecededBy: (?<!\\)
+    afterComment: (?!(?:\hend)).*?

@@ -1,0 +1,8 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: 30
+        blocksFollow:
+           other: |-
+             (?x)\\begin\{[^}]*?\}
+                |
+                \\ifnum\\x>0

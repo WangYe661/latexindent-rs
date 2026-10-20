@@ -1,0 +1,25 @@
+specialBeginEnd:
+  -
+    name: draw
+    begin: '\\draw'
+    end: ';'
+    nested: 1             # <!--- IMPORTANT
+  -
+    name: filldraw
+    begin: '\\filldraw'
+    end: ';'
+  # -                    # <!--- ALTERNATIVE
+  #   name: inlineMath   # <!--- ALTERNATIVE
+  #   lookForThis: 0     # <!--- ALTERNATIVE
+
+lookForAlignDelims:
+   draw: 
+      delimiterRegEx: '(pic|node)'
+      lookForChildCodeBlocks: 0
+   filldraw: 
+      delimiterRegEx: '(--)'
+      lookForChildCodeBlocks: 0
+
+fineTuning:
+  commands:
+    name: (?!(?:begin|end|draw|filldraw|pic|node))[+a-zA-Z@\*0-9_\:]+

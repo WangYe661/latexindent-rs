@@ -1,0 +1,13 @@
+modifyLineBreaks:
+    textWrapOptions:
+        blocksEndBefore:
+           other: |-
+             (?x)\\emph
+               |
+             \\footnote
+               |
+             \\begin\{filecontents
+               |
+             \\\[
+               |
+             \\end\{

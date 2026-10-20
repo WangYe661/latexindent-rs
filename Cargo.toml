@@ -1,0 +1,19 @@
+[package]
+name = "latexindent-rs"
+version = "4.0.2"
+edition = "2021"
+description = "Rust port of latexindent.pl (beautify .tex/.sty/.cls/.bib files)"
+license = "MIT"
+
+[[bin]]
+name = "latexindent-rs"
+path = "src/main.rs"
+
+[dependencies]
+pcre2 = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+unicode-segmentation = "1"
+
+[profile.release]
+opt-level = 2

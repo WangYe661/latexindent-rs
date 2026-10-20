@@ -1,0 +1,10 @@
+indentAfterHeadings:
+    chapter: 
+       lookForThis: 1
+       level: 1
+    section:
+       lookForThis: 1
+       level: 2
+    section*:
+       lookForThis: 1
+       level: 2

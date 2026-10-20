@@ -1,0 +1,8 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: 20 
+        blocksFollow:
+           other: |-
+             (?x)\\item
+        blocksBeginWith:
+           a-z: 1

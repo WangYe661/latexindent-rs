@@ -1,0 +1,8 @@
+noAdditionalIndent:
+  document: 0
+modifyLineBreaks:
+  textWrapOptions:
+    columns: 3
+    blocksFollow:
+       other: |-
+         (?x)\\begin\{(?:document)\}

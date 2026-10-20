@@ -1,0 +1,8 @@
+indentAfterHeadings:
+    paragraph:
+       lookForThis: 1
+       level: 1
+indentRules:
+    paragraph: 
+        mandatoryArguments: " "
+        afterHeading: "\t\t\t"

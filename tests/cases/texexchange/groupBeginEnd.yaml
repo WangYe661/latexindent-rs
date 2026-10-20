@@ -1,0 +1,11 @@
+specialBeginEnd:
+  -
+   name: groupBG
+   begin: '\\group_begin:'
+   end: '\\group_end:'
+   nested: 1
+  -
+   name: groupBGLaTeX
+   begin: '\\begingroup'
+   end: '\\endgroup'
+   nested: 1

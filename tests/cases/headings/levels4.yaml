@@ -1,0 +1,25 @@
+indentAfterHeadings:
+    part:
+       lookForThis: 1
+       level: 7
+    chapter: 
+       lookForThis: 1
+       level: 6
+    section:
+       lookForThis: 1
+       level: 5
+    subsection:
+       lookForThis: 1
+       level: 4
+    subsection*:
+       lookForThis: 1
+       level: 4
+    subsubsection:
+       lookForThis: 1
+       level: 3
+    paragraph:
+       lookForThis: 1
+       level: 2
+    subparagraph:
+       lookForThis: 1
+       level: 1

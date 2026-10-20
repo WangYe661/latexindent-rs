@@ -1,0 +1,10 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: 80
+        blocksFollow:
+            other: |-
+              (?x)\\\]
+    specialBeginEnd:
+      displayMath:
+        SpecialBeginStartsOnOwnLine: 1
+        SpecialEndFinishesWithLineBreak: 1

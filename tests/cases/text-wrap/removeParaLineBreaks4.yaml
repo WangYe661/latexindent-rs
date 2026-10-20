@@ -1,0 +1,9 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: -1
+        blocksFollow:
+           blankLine: 0
+           other: |-
+             (?x)\\item
+        blocksBeginWith:
+           0-9: 1

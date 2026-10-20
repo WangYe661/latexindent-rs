@@ -1,0 +1,6 @@
+lookForAlignDelims:
+   @online: 
+      delimiterRegEx: '(=)'
+      lookForChildCodeBlocks: 0
+noAdditionalIndentGlobal:
+  namedGroupingBracesBrackets: 1

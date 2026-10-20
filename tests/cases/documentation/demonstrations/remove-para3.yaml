@@ -1,0 +1,6 @@
+modifyLineBreaks:
+    textWrapOptions:
+        columns: -1
+        blocksFollow:
+           other: |-
+             (?x) \\begin\{(?:one)\}

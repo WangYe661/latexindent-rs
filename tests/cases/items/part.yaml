@@ -1,0 +1,14 @@
+indentRules:
+   part: "      "
+fineTuning:
+  items:
+    itemRegEx: |-
+      (?x)
+      \\
+      (?:
+        item
+        |
+        myitem
+        |
+        part
+      )

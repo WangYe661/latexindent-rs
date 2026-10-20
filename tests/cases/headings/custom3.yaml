@@ -1,0 +1,7 @@
+indentAfterHeadings:
+    myheading:
+       lookForThis: 1
+       level: 2
+    otherheading: 
+       lookForThis: 1
+       level: 1

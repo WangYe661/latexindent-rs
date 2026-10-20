@@ -1,0 +1,10 @@
+specialBeginEnd:
+    procedure:
+        begin: \\Procedure\{[^}]+\}
+        end: \\EndProcedure
+        middle: \\State
+        lookForThis: 1
+        nested: 1
+fineTuning:
+  commands:
+    name: (?!begin|end|Procedure|If|While|ElsIf)[+a-zA-Z@\*0-9_\:]+

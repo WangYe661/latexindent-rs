@@ -1,0 +1,11 @@
+defaultIndent: " "
+indentAfterItems:
+  outline: 1
+
+indentRules:      # <!---- NEW 
+  1: "   "        # <!---- NEW 
+  2: "   "        # <!---- NEW 
+
+fineTuning:
+  items:
+    itemRegEx: \\(?:item|myitem|[123])             #<!---------- NEW

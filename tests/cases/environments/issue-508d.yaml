@@ -1,0 +1,4 @@
+modifyLineBreaks:
+  optionalArguments:
+    theorem:
+      RSqBFinishesWithLineBreak: 1

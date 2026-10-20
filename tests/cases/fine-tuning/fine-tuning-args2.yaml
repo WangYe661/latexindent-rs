@@ -1,0 +1,6 @@
+fineTuning:
+    arguments:
+      between: '_|\^'
+
+noAdditionalIndent:
+  '*': 1

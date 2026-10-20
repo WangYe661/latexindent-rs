@@ -1,0 +1,5 @@
+modifyLineBreaks:
+    specialBeginEnd:
+        SpecialMiddleStartsOnOwnLine: -1
+        If:
+            SpecialMiddleFinishesWithLineBreak: 3
