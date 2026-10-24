@@ -1,0 +1,11 @@
+# 统一用 LF 检出：测试基准按 LF 生成，Windows 下若被 core.autocrlf 转成 CRLF
+# 会让大量用例（行尾空白、行锚点正则等）比对失败。
+* text=auto eol=lf
+
+# 下面这些用例文件本身就要求 DOS(CRLF) 换行，禁止任何转换：
+# - issue-256：上游用例以 CRLF 输入验证「不在 \r 前删行尾空白」的行为
+# - issue-256-mod1：上述 CRLF 输入的产物，基准本身也是 CRLF
+# - crlf-no-trailing-indent：检查 CRLF 输入保持 CRLF 输出、且不累积行尾缩进
+tests/cases/environments/issue-256.tex -text
+tests/cases/environments/issue-256-mod1.tex -text
+tests/cases/environments/crlf-no-trailing-indent.tex -text
