@@ -6,7 +6,7 @@
 //! 展开为 **i = -1, 0, 1, 2, 3, 4 共 6 轮**（每轮 18 次调用 = 108 条）。
 //! 分段：循环前静态 5 条 + 循环 108 条 + 循环后静态 23 条 = 136 条。
 mod common;
-use common::{check, check_owned, check_overwrite, report};
+use common::{check, check_overwrite, check_owned, report};
 
 /// 一条待补用例：输入文件名、参数、产物（基准）文件名。
 type Case = (String, Vec<String>, String);
@@ -65,7 +65,11 @@ fn ported_cases() -> Vec<Case> {
         }
         // L29–L31：verbatim special，spec 版
         let ls = format!("-l=verb-special,verb-spec{n}");
-        for base in ["verbatim-special1", "verbatim-special2", "verbatim-special3"] {
+        for base in [
+            "verbatim-special1",
+            "verbatim-special2",
+            "verbatim-special3",
+        ] {
             v.push(case(
                 &format!("{base}.tex"),
                 &["-s", "-m", &ls, &ob],
@@ -74,7 +78,11 @@ fn ported_cases() -> Vec<Case> {
         }
         // L32–L34：verbatim special，end-spec 版
         let lx = format!("-l=verb-special,verb-end-spec{n}");
-        for base in ["verbatim-special1", "verbatim-special4", "verbatim-special5"] {
+        for base in [
+            "verbatim-special1",
+            "verbatim-special4",
+            "verbatim-special5",
+        ] {
             v.push(case(
                 &format!("{base}.tex"),
                 &["-s", "-m", &lx, &oe],
@@ -150,7 +158,12 @@ fn ported_cases() -> Vec<Case> {
     ));
     v.push(case(
         "verbatim-special3.tex",
-        &["-s", "-m", "-l=verb-special,verb-spec2-named", "-o=+-mod2-named"],
+        &[
+            "-s",
+            "-m",
+            "-l=verb-special,verb-spec2-named",
+            "-o=+-mod2-named",
+        ],
         "verbatim-special3-mod2-named.tex",
     ));
     v.push(case(

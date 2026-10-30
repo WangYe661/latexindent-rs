@@ -1,12 +1,13 @@
 mod alignment;
-mod blocks;
 mod blank_lines;
+mod blocks;
 mod document;
 mod double_backslash;
 mod file_contents;
 mod heading;
 mod logger;
 mod mlb;
+mod num;
 mod patterns;
 mod replacement;
 mod sentence;

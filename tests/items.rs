@@ -5,7 +5,7 @@
 //! 第 54 行的 `for (( i=$loopmin ; i <= $loopmax ; i++ ))` 展开为 **i = 1..=10 共 10 轮**
 //! （每轮 9 条 = 90 条），加上循环外 45 条 = 上游调用 135 条。
 mod common;
-use common::{check, check_owned, check_overwrite, report};
+use common::{check, check_overwrite, check_owned, report};
 
 /// 一条待补用例：输入文件名、参数、产物（基准）文件名。
 type Case = (String, Vec<String>, String);
@@ -40,17 +40,29 @@ fn ported_cases() -> Vec<Case> {
     // L34 – L36：noAdditionalIndent
     v.push(case(
         "items1.tex",
-        &["-s", "-l=noAdditionalIndentItemize", "-o=+-noAdditionalIndentItemize"],
+        &[
+            "-s",
+            "-l=noAdditionalIndentItemize",
+            "-o=+-noAdditionalIndentItemize",
+        ],
         "items1-noAdditionalIndentItemize.tex",
     ));
     v.push(case(
         "items1.tex",
-        &["-s", "-l=noAdditionalIndentItems", "-o=+-noAdditionalIndentItems"],
+        &[
+            "-s",
+            "-l=noAdditionalIndentItems",
+            "-o=+-noAdditionalIndentItems",
+        ],
         "items1-noAdditionalIndentItems.tex",
     ));
     v.push(case(
         "items3.tex",
-        &["-s", "-l=noAdditionalIndent-myenv", "-o=+-noAdditionalIndent-myenv"],
+        &[
+            "-s",
+            "-l=noAdditionalIndent-myenv",
+            "-o=+-noAdditionalIndent-myenv",
+        ],
         "items3-noAdditionalIndent-myenv.tex",
     ));
     // L39 – L40：indentRules
@@ -65,16 +77,32 @@ fn ported_cases() -> Vec<Case> {
         "items1-indentRulesItems.tex",
     ));
     // L43 – L44：不同 item 名，`-w` 原地覆盖
-    v.push(case("items1-myitem.tex", &["-s", "-l=myitem", "-w"], "items1-myitem.tex"));
-    v.push(case("items1-part.tex", &["-s", "-l=part", "-w"], "items1-part.tex"));
+    v.push(case(
+        "items1-myitem.tex",
+        &["-s", "-l=myitem", "-w"],
+        "items1-myitem.tex",
+    ));
+    v.push(case(
+        "items1-part.tex",
+        &["-s", "-l=part", "-w"],
+        "items1-part.tex",
+    ));
     // L47 – L51：modifyLineBreaks
-    v.push(case("items1.tex", &["-s", "-m", "-o=+-mod0"], "items1-mod0.tex"));
+    v.push(case(
+        "items1.tex",
+        &["-s", "-m", "-o=+-mod0"],
+        "items1-mod0.tex",
+    ));
     v.push(case(
         "items1-blanklines.tex",
         &["-s", "-m", "-o=+-mod0"],
         "items1-blanklines-mod0.tex",
     ));
-    v.push(case("items2.tex", &["-s", "-m", "-o=+-mod0"], "items2-mod0.tex"));
+    v.push(case(
+        "items2.tex",
+        &["-s", "-m", "-o=+-mod0"],
+        "items2-mod0.tex",
+    ));
     v.push(case(
         "items2-1.tex",
         &["-s", "-m", "-l=items-mod3", "-o=+-mod3"],
@@ -139,7 +167,12 @@ fn ported_cases() -> Vec<Case> {
     ));
     v.push(case(
         "items13.tex",
-        &["-s", "-m", "-l=items-mod2,removeTWS-before", "-o=+-remove-before-mod2"],
+        &[
+            "-s",
+            "-m",
+            "-l=items-mod2,removeTWS-before",
+            "-o=+-remove-before-mod2",
+        ],
         "items13-remove-before-mod2.tex",
     ));
     v.push(case(
@@ -272,25 +305,76 @@ fn items_ported() {
     run_ported_cases(false);
 }
 
-
 // ---------------------------------------------------------------------------
 // 本轮搬运前已有的 9 条断言（对应脚本 L10–L23）
 // ---------------------------------------------------------------------------
 
 #[test]
 fn items_spaces_and_tabs() {
-    check("items", "spaces-and-tabs.tex", &["-s", "-l=../environments/env-all-on,tabs-follow-tabs", "-o=spaces-and-tabs-tft"], "spaces-and-tabs-tft.tex");
-    check("items", "spaces-and-tabs.tex", &["-s", "-l=../environments/env-all-on,spaces-follow-tabs", "-o=spaces-and-tabs-sft"], "spaces-and-tabs-sft.tex");
-    check("items", "spaces-and-tabs.tex", &["-s", "-l=../environments/env-all-on,tabs-follow-spaces", "-o=spaces-and-tabs-tfs"], "spaces-and-tabs-tfs.tex");
+    check(
+        "items",
+        "spaces-and-tabs.tex",
+        &[
+            "-s",
+            "-l=../environments/env-all-on,tabs-follow-tabs",
+            "-o=spaces-and-tabs-tft",
+        ],
+        "spaces-and-tabs-tft.tex",
+    );
+    check(
+        "items",
+        "spaces-and-tabs.tex",
+        &[
+            "-s",
+            "-l=../environments/env-all-on,spaces-follow-tabs",
+            "-o=spaces-and-tabs-sft",
+        ],
+        "spaces-and-tabs-sft.tex",
+    );
+    check(
+        "items",
+        "spaces-and-tabs.tex",
+        &[
+            "-s",
+            "-l=../environments/env-all-on,tabs-follow-spaces",
+            "-o=spaces-and-tabs-tfs",
+        ],
+        "spaces-and-tabs-tfs.tex",
+    );
 }
 
 #[test]
 fn items_default() {
-    check("items", "items1.tex", &["-s", "-o=+-default"], "items1-default.tex");
-    check("items", "items1-5.tex", &["-s", "-o=+-mod1"], "items1-5-mod1.tex");
-    check("items", "items2.tex", &["-s", "-t", "-o=+-default"], "items2-default.tex");
-    check("items", "items2-5.tex", &["-s", "-o=+-mod1"], "items2-5-mod1.tex");
-    check("items", "items3.tex", &["-s", "-o=+-default"], "items3-default.tex");
+    check(
+        "items",
+        "items1.tex",
+        &["-s", "-o=+-default"],
+        "items1-default.tex",
+    );
+    check(
+        "items",
+        "items1-5.tex",
+        &["-s", "-o=+-mod1"],
+        "items1-5-mod1.tex",
+    );
+    check(
+        "items",
+        "items2.tex",
+        &["-s", "-t", "-o=+-default"],
+        "items2-default.tex",
+    );
+    check(
+        "items",
+        "items2-5.tex",
+        &["-s", "-o=+-mod1"],
+        "items2-5-mod1.tex",
+    );
+    check(
+        "items",
+        "items3.tex",
+        &["-s", "-o=+-default"],
+        "items3-default.tex",
+    );
 }
 
 #[test]

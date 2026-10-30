@@ -3,7 +3,7 @@
 
 use crate::logger;
 use crate::patterns::{gn, replace_all_with};
-use crate::settings::{as_bool, as_i64, as_str, get};
+use crate::settings::{as_bool, as_i64, get};
 use crate::state;
 use serde_yaml::Value;
 
@@ -107,7 +107,9 @@ fn construct_levels() -> (String, Vec<String>, Vec<(String, usize)>) {
                 let keys: Vec<Value> = m.keys().cloned().collect();
                 for k in keys {
                     if let Some(info) = m.get_mut(&k).and_then(|x| x.as_mapping_mut()) {
-                        if let Some(ia) = info.remove(&Value::String("indentAfterThisHeading".into())) {
+                        if let Some(ia) =
+                            info.remove(&Value::String("indentAfterThisHeading".into()))
+                        {
                             info.insert(Value::String("lookForThis".into()), ia);
                             old = true;
                         }
@@ -118,9 +120,7 @@ fn construct_levels() -> (String, Vec<String>, Vec<(String, usize)>) {
         old
     });
     if old_syntax {
-        logger::warn(
-            "*Obsolete indentAfterHeadings YAML syntax used, changed to the following:",
-        );
+        logger::warn("*Obsolete indentAfterHeadings YAML syntax used, changed to the following:");
         let dump = state::settings(|s| dumper(get(&s.root, "indentAfterHeadings")));
         logger::warn(&dump);
     }
@@ -134,12 +134,11 @@ fn construct_levels() -> (String, Vec<String>, Vec<(String, usize)>) {
                     Some(i) => i,
                     None => continue,
                 };
-                let look = get(info, "lookForThis")
-                    .or_else(|| get(info, "indentAfterThisHeading"));
+                let look = get(info, "lookForThis").or_else(|| get(info, "indentAfterThisHeading"));
                 if !as_bool(look) {
                     continue;
                 }
-                let level = as_i64(get(info, "level")).unwrap_or(1) as usize;
+                let level = crate::num::clamp_usize(as_i64(get(info, "level")).unwrap_or(1));
                 v.push((name, level));
             }
         }
@@ -161,8 +160,7 @@ fn construct_levels() -> (String, Vec<String>, Vec<(String, usize)>) {
     let max_level = entries.iter().map(|e| e.1).max().unwrap_or(1);
     let mut level_array: Vec<String> = Vec::new();
     for lvl in min_level..=max_level {
-        let mut names: Vec<&(String, usize)> =
-            entries.iter().filter(|e| e.1 == lvl).collect();
+        let mut names: Vec<&(String, usize)> = entries.iter().filter(|e| e.1 == lvl).collect();
         if names.is_empty() {
             continue;
         }
@@ -264,8 +262,10 @@ pub fn find_heading(body: &str) -> String {
             "*protecting preamble which can contain headings commands (indentPreamble: 1)",
         );
         state::settings_mut(|s| {
-            s.root
-                .insert(Value::String("indentPreamble".into()), Value::Number(0.into()));
+            s.root.insert(
+                Value::String("indentPreamble".into()),
+                Value::Number(0.into()),
+            );
         });
         body = crate::file_contents::find_file_contents_environments_and_preamble(&body);
     }
@@ -273,7 +273,13 @@ pub fn find_heading(body: &str) -> String {
     let parts = get_body_parts(&body, &all_re, &lookup);
     let mut out = String::new();
     for p in &parts {
-        out.push_str(&after_heading_indentation(&p.body, 0, &all_re, &level_array, &lookup));
+        out.push_str(&after_heading_indentation(
+            &p.body,
+            0,
+            &all_re,
+            &level_array,
+            &lookup,
+        ));
     }
 
     if preamble_wanted {
@@ -311,11 +317,9 @@ fn after_heading_indentation(
     }
     out.push(body[last..].to_string());
 
-    let mut heading_value = String::new();
     let mut name = String::new();
     for index in 1..out.len() {
         if index % 3 == 1 {
-            heading_value = out[index].clone();
             continue;
         }
         if index % 3 == 2 {
@@ -334,7 +338,11 @@ fn after_heading_indentation(
                     merged.push_str(&sp.body);
                 } else {
                     merged.push_str(&after_heading_indentation(
-                        &sp.body, 0, all_re, level_array, lookup,
+                        &sp.body,
+                        0,
+                        all_re,
+                        level_array,
+                        lookup,
                     ));
                 }
             }
@@ -342,7 +350,8 @@ fn after_heading_indentation(
         }
         text = after_heading_indentation(&text, current_level + 1, all_re, level_array, lookup);
 
-        let os = state::settings_mut(|s| s.settings_for_object(&name, "afterHeading", false, false));
+        let os =
+            state::settings_mut(|s| s.settings_for_object(&name, "afterHeading", false, false));
         let added = os.indentation.clone();
         if !added.is_empty() {
             let mut tail1 = String::new();
@@ -367,8 +376,11 @@ fn after_heading_indentation(
             text = replace_all_with(&text, &re, |_| added.clone());
             text = text.replacen(&added, "", 1);
             // s"\R$added(\h*)$"\n$1"s：去掉末行多余缩进
-            let re = crate::patterns::re_new(&format!(r"(?s)\R{}(\h*)$", regex_esc_str(&added)))
-                .unwrap();
+            let re = crate::patterns::re_new(&format!(
+                r"(?s)\R{}(\h*)$",
+                crate::patterns::esc_lit(&added)
+            ))
+            .unwrap();
             text = replace_all_with(&text, &re, |c| format!("\n{}", gn(c, 1)));
             text.push_str(&tail1);
             text.push_str(&tail2);
@@ -376,17 +388,6 @@ fn after_heading_indentation(
         out[index] = text;
     }
     out.join("")
-}
-
-fn regex_esc_str(s: &str) -> String {
-    let mut out = String::new();
-    for ch in s.chars() {
-        if r"\.^$|?*+()[]{}".contains(ch) {
-            out.push('\\');
-        }
-        out.push(ch);
-    }
-    out
 }
 
 fn get_path_opt<'a>(map: &'a serde_yaml::Mapping, path: &[&str]) -> Option<&'a serde_yaml::Value> {

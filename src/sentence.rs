@@ -2,7 +2,7 @@
 
 use pcre2::bytes::Regex;
 
-use crate::patterns::{gn, replace_all_with};
+use crate::patterns::{esc_lit, gn, replace_all_with};
 use crate::settings::{as_bool, as_i64, as_str, get};
 use crate::state::{self, SentenceObj};
 use crate::tokens::tok;
@@ -56,7 +56,7 @@ pub fn one_sentence_per_line(body: &str) -> String {
         let mut parts: Vec<String> = Vec::new();
         let mut blank_on = false;
         let mut par_on = false;
-        let mut push = |k: &str, piece: Option<String>, parts: &mut Vec<String>| {
+        let push = |k: &str, piece: Option<String>, parts: &mut Vec<String>| {
             if as_bool(get(&follow, k)) {
                 if let Some(p) = piece {
                     parts.push(p);
@@ -267,7 +267,6 @@ pub fn one_sentence_per_line(body: &str) -> String {
                 s.sentences.push(SentenceObj {
                     id: id.clone(),
                     value: format!("{middle}{end}"),
-                    leading_horizontal_space: h_space.clone(),
                     follows: beginning.clone(),
                 });
             });
@@ -276,7 +275,6 @@ pub fn one_sentence_per_line(body: &str) -> String {
                 s.sentences.push(SentenceObj {
                     id: id.clone(),
                     value: format!("{middle}{end}"),
-                    leading_horizontal_space: h_space.clone(),
                     follows: beginning.clone(),
                 });
             });
@@ -329,23 +327,23 @@ pub fn one_sentence_per_line(body: &str) -> String {
             value = crate::wrap::text_wrap_sentence(&value, &follows);
         }
         // 句子在文件末尾 / 开头 / 其余位置
-        let r = re(&format!(r"(?s)\h*{}\h*$", regex_esc(&s.id)));
-        if re(&format!(r"(?s)\h*{}\h*$", regex_esc(&s.id)))
+        let r = re(&format!(r"(?s)\h*{}\h*$", esc_lit(&s.id)));
+        if re(&format!(r"(?s)\h*{}\h*$", esc_lit(&s.id)))
             .is_match(body.as_bytes())
             .unwrap_or(false)
         {
             body = replace_all_with(&body, &r, |_| value.clone());
             continue;
         }
-        let r = re(&format!(r"(?m)^{}\h*\R?", regex_esc(&s.id)));
-        if re(&format!(r"(?m)^{}\h*\R?", regex_esc(&s.id)))
+        let r = re(&format!(r"(?m)^{}\h*\R?", esc_lit(&s.id)));
+        if re(&format!(r"(?m)^{}\h*\R?", esc_lit(&s.id)))
             .is_match(body.as_bytes())
             .unwrap_or(false)
         {
             body = replace_all_with(&body, &r, |_| format!("{value}\n"));
             continue;
         }
-        let r = re(&format!(r"(?s)\R?\h*{}\h*\R?", regex_esc(&s.id)));
+        let r = re(&format!(r"(?s)\R?\h*{}\h*\R?", esc_lit(&s.id)));
         body = replace_all_with(&body, &r, |_| format!("\n{value}\n"));
     }
     body
@@ -353,17 +351,6 @@ pub fn one_sentence_per_line(body: &str) -> String {
 
 fn gs_local<'t>(caps: &'t pcre2::bytes::Captures, name: &str) -> &'t str {
     crate::patterns::gs(caps, name).unwrap_or("")
-}
-
-fn regex_esc(s: &str) -> String {
-    let mut out = String::new();
-    for ch in s.chars() {
-        if r"\.^$|?*+()[]{}".contains(ch) {
-            out.push('\\');
-        }
-        out.push(ch);
-    }
-    out
 }
 
 /// mlb_one_sentence_per_line_indent：句子延后缩进（sentenceIndent / wrap-after）。
@@ -386,7 +373,7 @@ pub fn mlb_one_sentence_per_line_indent(body: &str) -> String {
     let mut body = body.to_string();
     for s in &sentences {
         // 句子所在行的行首空白即 surroundingIndentation
-        let re_id = re(&format!(r"(?m)^(\h*){}", regex_esc(&s.id)));
+        let re_id = re(&format!(r"(?m)^(\h*){}", esc_lit(&s.id)));
         let surrounding = match re_id.captures(body.as_bytes()).unwrap() {
             Some(c) => gn(&c, 1).to_string(),
             None => String::new(),
@@ -405,7 +392,7 @@ pub fn mlb_one_sentence_per_line_indent(body: &str) -> String {
             let rest = replace_all_with(&rest, &r, |_| indent.clone());
             value = format!("{first}\n{rest}");
         }
-        let r = re(&format!(r"(?m)^(\h*){}", regex_esc(&s.id)));
+        let r = re(&format!(r"(?m)^(\h*){}", esc_lit(&s.id)));
         body = replace_all_with(&body, &r, |c| format!("{}{}", gn(c, 1), value));
     }
     body

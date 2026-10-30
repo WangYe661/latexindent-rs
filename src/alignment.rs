@@ -11,6 +11,7 @@
 use pcre2::bytes::Regex;
 use serde_yaml::Value;
 
+use crate::num::{clamp_usize, to_i64};
 use crate::patterns::{gn, replace_all_with};
 use crate::settings::{as_bool, as_i64, as_str, get, get_path, ObjectSettings};
 use crate::state;
@@ -110,8 +111,12 @@ pub struct AlignResult {
 
 /// double_back_slash_else：`\\` 的 poly-switch（DBSStartsOnOwnLine/DBSFinishesWithLineBreak）。
 /// v_start/v_finish 由调用方给出：参数对象用 mand/opt 映射值，其余用 previouslyFound（os.poly）。
-pub fn double_back_slash_else(body: &str, os: &ObjectSettings, v_start: i64, v_finish: i64) -> String {
-    let t = tok(|t| t.clone());
+pub fn double_back_slash_else(
+    body: &str,
+    os: &ObjectSettings,
+    v_start: i64,
+    v_finish: i64,
+) -> String {
     if v_start == 0 && v_finish == 0 {
         return body.to_string();
     }
@@ -298,7 +303,8 @@ fn dont_measure_cell(
                     serde_yaml::Value::Mapping(m) => {
                         let apply = crate::settings::get(m, "applyTo").and_then(|v| v.as_str());
                         if apply.map(|a| a == "cell").unwrap_or(true) {
-                            if let Some(this) = crate::settings::get(m, "this").and_then(|v| v.as_str())
+                            if let Some(this) =
+                                crate::settings::get(m, "this").and_then(|v| v.as_str())
                             {
                                 if this == entry {
                                     hit(cell);
@@ -344,6 +350,7 @@ pub fn align_at_ampersand(
 /// 参数对象版：parent_begin 供 begin 恰为 `{`/`[` 时的计量 quirk（Perl parentBegin）；
 /// dbs_override 为参数对象自身的 DBS 开关（Perl `${$self}{DBSStartsOnOwnLine}`，
 /// 取自 mand/opt 映射），其余对象用 previouslyFound（os.poly）
+// 参数表与 Perl AlignmentAtAmpersand.pm 的同名函数一一对应，拆成结构体会削弱可对照性
 #[allow(clippy::too_many_arguments)]
 pub fn align_at_ampersand_with_parent(
     begin: &mut String,
@@ -353,7 +360,16 @@ pub fn align_at_ampersand_with_parent(
     dbs_override: Option<(i64, i64)>,
 ) -> AlignResult {
     let mut hidden: Vec<(String, String, usize)> = Vec::new();
-    align_at_ampersand_impl(begin, body, os, None, &mut hidden, parent_begin, dbs_override).0
+    align_at_ampersand_impl(
+        begin,
+        body,
+        os,
+        None,
+        &mut hidden,
+        parent_begin,
+        dbs_override,
+    )
+    .0
 }
 
 /// Perl begin 计量：begin 恰为 {/[ 且有 parentBegin 时改量 `parentBegin + "{"`（quirk，
@@ -415,8 +431,8 @@ fn align_at_ampersand_impl(
     let linebreaks_at_end_body = re_tail_lb.is_match(body.as_bytes()).unwrap_or(false);
     let mut linebreaks_at_end_body = linebreaks_at_end_body;
 
-    let spaces_before_amp = opt_i(os, "spacesBeforeAmpersand", 1).max(0) as usize;
-    let spaces_after_amp = opt_i(os, "spacesAfterAmpersand", 1).max(0) as usize;
+    let spaces_before_amp = clamp_usize(opt_i(os, "spacesBeforeAmpersand", 1).max(0));
+    let spaces_after_amp = clamp_usize(opt_i(os, "spacesAfterAmpersand", 1).max(0));
     let mut leading_blank = opt_i(os, "leadingBlankColumn", -1);
     let align_dbs = opt_b(os, "alignDoubleBackSlash", true);
     let spaces_before_dbs = opt_i(os, "spacesBeforeDoubleBackSlash", 1);
@@ -513,7 +529,11 @@ fn align_at_ampersand_impl(
         }
         // Perl：递归里首格宽度 += maxDBSlength、DBSpadding = max-current
         let dbs_first = dbs.map(|d| {
-            let current = d.before_dbs_lengths.get(rows.len() + 1).copied().unwrap_or(0);
+            let current = d
+                .before_dbs_lengths
+                .get(rows.len() + 1)
+                .copied()
+                .unwrap_or(0);
             (d.max_dbs_length, d.max_dbs_length.saturating_sub(current))
         });
         let mut line = line.to_string();
@@ -584,7 +604,7 @@ fn align_at_ampersand_impl(
         // 按分隔符切列（分隔符归属它前面的单元格；multicolumn 占位补 gap 格）
         let mut cells: Vec<Cell> = Vec::new();
         let mut last = 0usize;
-        let mut last_entry = 0usize;
+        let mut last_entry;
         for m in delim.find_iter(line.as_bytes()) {
             let m = m.unwrap();
             last_entry = push_column(
@@ -662,7 +682,7 @@ fn align_at_ampersand_impl(
 
     // ---- main_formatting（对应 Perl main_formatting） ----
     let final_spacing = if spaces_before_dbs >= 1 {
-        " ".repeat(spaces_before_dbs as usize)
+        " ".repeat(clamp_usize(spaces_before_dbs))
     } else {
         String::new()
     };
@@ -751,9 +771,9 @@ fn align_at_ampersand_impl(
             if spaces_before_dbs < 0 && !align_dbs {
                 padding = String::new();
             } else if spaces_before_dbs >= 0 && !align_dbs {
-                padding = " ".repeat(spaces_before_dbs as usize);
+                padding = " ".repeat(clamp_usize(spaces_before_dbs));
             } else {
-                padding = " ".repeat((maximum_row_width as i64 - row_width as i64).max(0) as usize);
+                padding = " ".repeat(maximum_row_width.saturating_sub(row_width));
             }
         }
         line.push_str(&padding);
@@ -767,7 +787,7 @@ fn align_at_ampersand_impl(
         }
         // Perl leadingBlankColumn：行首水平空白定宽替换（s/^\h*/$padding/）
         if leading_blank > -1 {
-            let pad = " ".repeat(leading_blank as usize);
+            let pad = " ".repeat(clamp_usize(leading_blank));
             let trimmed = line.trim_start_matches([' ', '\t']);
             line = format!("{pad}{trimmed}");
         }
@@ -781,7 +801,7 @@ fn align_at_ampersand_impl(
         // Perl：linebreaksAtEnd{body} 在此重测（body 尾恰好一个 \R）
         let re_lb_end = crate::patterns::re_new(r"\R$").unwrap();
         linebreaks_at_end_body = re_lb_end.is_match(body.as_bytes()).unwrap_or(false);
-        let spaces_after_dbs = opt_i(os, "spacesAfterDoubleBackSlash", 1).max(0) as usize;
+        let spaces_after_dbs = clamp_usize(opt_i(os, "spacesAfterDoubleBackSlash", 1).max(0));
         let re_split = crate::patterns::re_new(&format!(
             r"(?s)(.*?)({})\h*",
             crate::patterns::x_guard(&dbs_re_src)
@@ -959,6 +979,7 @@ fn push_column(
 }
 
 /// Perl individual_padding：最大列宽 + individual padding + 行内补位。
+// 列状态是就地修改的多个 Vec，全部借用同时存活的写法比结构体更贴近参考实现
 #[allow(clippy::too_many_arguments)]
 fn individual_padding(
     rows: &mut [Row],
@@ -1170,22 +1191,22 @@ fn multicolumn_post_check(rows: &mut [Row], sb: usize, sa: usize) {
                         inner_j += 1;
                         continue;
                     }
-                    gw += (ic.width + ic.individual_padding) as i64;
+                    gw += to_i64(ic.width + ic.individual_padding);
                     amps += 1;
                     if amps > 0 {
-                        gw += ic.delimiter_length as i64;
+                        gw += to_i64(ic.delimiter_length);
                     }
                     if let Some(cs) = type_full_span(&ic.col_span) {
                         inner_j += cs.saturating_sub(1);
                     }
                     inner_j += 1;
                 }
-                gw += amps * (sb + sa) as i64;
+                gw += amps * to_i64(sb + sa);
                 max_grouping_width = max_grouping_width.max(gw);
             }
             let c = &mut rows[ri].cells[j];
             c.individual_padding = 0;
-            c.group_padding = (max_grouping_width - c.width as i64).max(0) as usize;
+            c.group_padding = clamp_usize(max_grouping_width - to_i64(c.width));
         }
     }
 }
@@ -1233,6 +1254,7 @@ fn cell_width(entry: &str, hidden: &[(String, String, usize)]) -> usize {
 
 /// Perl hidden_child_row_width：含 token 的行按隐藏内容重建多行（后续行以点号对齐
 /// 到 token 前列宽、逐行剥尾随 `\\`）后取最大行宽；begin 首行并入计量。
+// 与 Perl hidden_child_row_width 的参数顺序保持一致，便于逐行对照
 #[allow(clippy::too_many_arguments)]
 fn hidden_child_row_width(
     tmp_row: &str,
@@ -1252,7 +1274,11 @@ fn hidden_child_row_width(
         }
     }
     if !tmp.contains(t.begin_of_token.as_str()) {
-        return if begin_ok { width(&tmp) } else { row_width_default };
+        return if begin_ok {
+            width(&tmp)
+        } else {
+            row_width_default
+        };
     }
     tmp = format!("{}{}", ".".repeat(length_of_begin), tmp);
     for (id, content, _) in hidden {
@@ -1387,7 +1413,7 @@ pub fn align_mark_down_block(body: &str) -> String {
     for (id, value) in returned {
         let re = match crate::patterns::re_new(&format!(
             r"(?s){not_preceded_by}%{}",
-            crate::trailing_comments::regex_esc(&value)
+            crate::patterns::esc_lit(&value)
         )) {
             Ok(r) => r,
             Err(_) => continue,

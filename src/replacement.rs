@@ -271,7 +271,8 @@ fn apply_substitution(body: &str, sub: &str) -> String {
                                 emit(&mut out, ch, &mut case, quote);
                             }
                             '1'..='9' => {
-                                for ch in crate::patterns::gn(caps, n as usize - '0' as usize).chars()
+                                for ch in
+                                    crate::patterns::gn(caps, n as usize - '0' as usize).chars()
                                 {
                                     emit(&mut out, ch, &mut case, quote);
                                 }

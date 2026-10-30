@@ -2,11 +2,11 @@
 //! Check.pm、LogFile.pm 的流程部分）。
 
 use crate::logger;
+use crate::num::to_i64;
 use crate::settings::{as_bool, as_i64, as_str, get, get_path};
 use crate::state;
 use crate::switches::{self, Switches};
-use crate::tokens::tok;
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 thread_local! {
@@ -142,10 +142,7 @@ pub fn run(args: &[String]) {
     switches::with_mut(|s| *s = sw.clone());
     state::init_settings(ms);
     let root_clone = state::settings(|s| s.root.clone());
-    state::init_patterns(crate::patterns::build(
-        &root_clone,
-        sw.is_m_switch_active(),
-    ));
+    state::init_patterns(crate::patterns::build(&root_clone, sw.is_m_switch_active()));
 
     // ---- 逐文件操作 ----
     let raw_output_to_file = sw.output_to_file.clone();
@@ -225,7 +222,7 @@ pub fn run(args: &[String]) {
     }
     output_logfile(&cruft_of(&files[0], &sw), &sw);
     if file_status > 2 {
-        std::process::exit(file_status as i32);
+        std::process::exit(i32::try_from(file_status).unwrap_or(1));
     }
     if check_status == 1 {
         std::process::exit(1);
@@ -547,13 +544,19 @@ fn file_extension_check(file: &str, sw: &Switches, cruft: &str) -> usize {
     let content = if file_name == "-" {
         use std::io::Read;
         let mut buf = String::new();
-        std::io::stdin().read_to_string(&mut buf).ok();
-        buf
+        match std::io::stdin().read_to_string(&mut buf) {
+            Ok(_) => buf,
+            Err(e) => {
+                logger::fatal(&format!("*could not read from STDIN: {e}"));
+                logger::fatal("Exiting, no indentation done.");
+                exit_with(4);
+            }
+        }
     } else {
         match std::fs::read_to_string(&file_name) {
             Ok(s) => s,
-            Err(_) => {
-                logger::fatal(&format!("*{file_name} could not be opened"));
+            Err(e) => {
+                logger::fatal(&format!("*{file_name} could not be opened: {e}"));
                 logger::fatal("Exiting, no indentation done.");
                 exit_with(4);
             }
@@ -616,8 +619,10 @@ fn lines_body_selected_lines(spec: &str, body: &str) -> String {
         if !valid(&min_s) || !valid(&max_s) {
             continue;
         }
-        let mut min: usize = min_s.parse().unwrap();
-        let mut max: usize = max_s.parse().unwrap();
+        // 位数超长（> usize::MAX）按无效区间忽略，而不是 panic
+        let (Ok(mut min), Ok(mut max)) = (min_s.parse::<usize>(), max_s.parse::<usize>()) else {
+            continue;
+        };
         if min > max {
             std::mem::swap(&mut min, &mut max);
         }
@@ -630,6 +635,10 @@ fn lines_body_selected_lines(spec: &str, body: &str) -> String {
         }
         if max > total {
             max = total;
+        }
+        // total == 0 时钳制会得到 0；丢弃该区间，避免下面的 `min - 1` 下溢
+        if min == 0 || max == 0 {
+            continue;
         }
         if negation {
             neg.insert(min, max);
@@ -644,7 +653,7 @@ fn lines_body_selected_lines(spec: &str, body: &str) -> String {
     // 取反区间 → 补集并入 min_max
     if !neg.is_empty() {
         let not_ranges = lines_sort_and_combine(neg);
-        for (i, &(nmin, nmax)) in not_ranges.iter().enumerate() {
+        for (i, &(nmin, _)) in not_ranges.iter().enumerate() {
             if i == 0 {
                 if nmin > 1 {
                     min_max.insert(1, nmin - 1);
@@ -748,7 +757,7 @@ fn create_back_up_file(sw: &Switches, body: &str) {
     let _ = body;
 
     let mut only_one = only_one;
-    let mut max_number = max_number;
+    let max_number = max_number;
     if only_one && max_number >= 1 {
         logger::warn(&format!(
             "*onlyOneBackUp={only_one} and maxNumberOfBackUps={max_number}"
@@ -838,13 +847,15 @@ fn output_indented_text(body: &str, sw: &Switches, file: &str, _cruft: &str) {
     logger::info("*Output routine:");
     if sw.overwrite && sw.output_to_file.is_none() {
         logger::info(&format!("Overwriting file {file}"));
-        if std::fs::write(file, body).is_err() {
-            logger::warn(&format!("Could not write to {file}"));
+        if let Err(e) = std::fs::write(file, body) {
+            logger::fatal(&format!("*Could not write to {file}: {e}"));
+            exit_with(5);
         }
     } else if let Some(out) = &sw.output_to_file {
         logger::info(&format!("Outputting to file {out}"));
-        if std::fs::write(out, body).is_err() {
-            logger::warn(&format!("Could not write to {out}"));
+        if let Err(e) = std::fs::write(out, body) {
+            logger::fatal(&format!("*Could not write to {out}: {e}"));
+            exit_with(5);
         }
     } else {
         logger::info("Not outputting to file; see -w and -o switches for more options.");
@@ -913,7 +924,7 @@ fn simple_diff(original: &str, new: &str, verbose: bool) {
     let mut first_line = diff[0].line;
     for i in 0..diff.len() {
         let cur = diff[i].line;
-        if i == diff.len() - 1 || (prev_line >= 0 && (cur as i64) > prev_line + 1) {
+        if i == diff.len() - 1 || (prev_line >= 0 && to_i64(cur) > prev_line + 1) {
             let mut last_line = if i == 0 { cur } else { diff[i - 1].line };
             if i == diff.len() - 1 {
                 last_line = cur;
@@ -952,7 +963,7 @@ fn simple_diff(original: &str, new: &str, verbose: bool) {
                 tmp_new.push_str(n);
             }
         }
-        prev_line = cur as i64;
+        prev_line = to_i64(cur);
     }
     for (old, new, first, last) in &chunks {
         logger::info(&format!("@@ {first} -- {last} @@"));
@@ -1112,10 +1123,14 @@ fn process_switches(sw: &mut Switches, files: &[String], first: &str) {
     // 故警告并关闭 -o。注意此判定在「-w 与 -o 同时给出」之后，-w 已先被关闭。
     if files.len() > 1 {
         if let Some(o) = sw.output_to_file.clone() {
-            if !o.trim_start_matches('h').starts_with('+') {
-                logger::warn("*-o switch specified as single file, but multiple files given as input");
+            if !o.starts_with('+') {
+                logger::warn(
+                    "*-o switch specified as single file, but multiple files given as input",
+                );
                 logger::warn(&format!("ignoring your specification -o {o}"));
-                logger::warn("perhaps you might specify it using, for example, -o=++ or -o=+myoutput");
+                logger::warn(
+                    "perhaps you might specify it using, for example, -o=++ or -o=+myoutput",
+                );
                 sw.output_to_file = None;
                 switches::with_mut(|s| s.output_to_file = None);
             }
@@ -1127,11 +1142,9 @@ fn process_switches(sw: &mut Switches, files: &[String], first: &str) {
 
 fn chrono_now() -> String {
     // 与 Perl 的 localtime() 输出格式近似
-    use std::time::SystemTime;
-    let _ = SystemTime::now();
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
+        .map(|d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
         .unwrap_or(0);
     format!("UNIX time {now}")
 }

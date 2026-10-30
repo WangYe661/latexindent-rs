@@ -17,7 +17,10 @@ const ENV_PATTERN: &str = concat!(
 #[test]
 fn atomic_group_supported() {
     let re = Regex::new(r"(?>ab|a)b").unwrap();
-    assert!(re.find(br"ab").unwrap().is_none(), "(?>ab|a)b 对 ab 不应匹配（原子组不回溯）");
+    assert!(
+        re.find(br"ab").unwrap().is_none(),
+        "(?>ab|a)b 对 ab 不应匹配（原子组不回溯）"
+    );
     assert!(re.find(br"xab").unwrap().is_none());
 }
 
@@ -27,7 +30,11 @@ fn self_recursion_and_backref() {
     let text = r"\begin{a}x\begin{b}y\end{b}z\end{a}";
     let caps = re.captures(text.as_bytes()).unwrap().unwrap();
     assert_eq!(s(caps.get(0).unwrap()), text, "应匹配整个嵌套结构");
-    assert_eq!(s(caps.name("ENVNAME").unwrap()), "a", "递归调用中的捕获不应覆盖外层 ENVNAME");
+    assert_eq!(
+        s(caps.name("ENVNAME").unwrap()),
+        "a",
+        "递归调用中的捕获不应覆盖外层 ENVNAME"
+    );
 }
 
 #[test]

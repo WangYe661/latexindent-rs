@@ -1,6 +1,6 @@
 //! 环境（environment）缩进与换行控制测试，基准取自 tests/cases/environments。
 mod common;
-use common::{check, check_owned, check_overwrite, report};
+use common::{check, check_overwrite, check_owned, report};
 
 // 基础缩进：默认设置下环境体缩进一个层级
 #[test]
@@ -221,7 +221,6 @@ fn run_group(group: &[CaseSpec], pending: bool) {
     }
 }
 
-
 fn all_groups() -> Vec<Vec<CaseSpec>> {
     vec![
         group_overwrite(),
@@ -290,17 +289,32 @@ fn group_mod_lines() -> Vec<CaseSpec> {
     vec![
         c(
             "environments-one-line.tex",
-            s(&["-s", "-l=env-all-on,env-mod-lines3", "-m", "-o=+-mod-lines3"]),
+            s(&[
+                "-s",
+                "-l=env-all-on,env-mod-lines3",
+                "-m",
+                "-o=+-mod-lines3",
+            ]),
             "environments-one-line-mod-lines3.tex",
         ),
         c(
             "environments-one-line.tex",
-            s(&["-s", "-l=env-all-on,env-mod-lines4", "-m", "-o=+-mod-lines4"]),
+            s(&[
+                "-s",
+                "-l=env-all-on,env-mod-lines4",
+                "-m",
+                "-o=+-mod-lines4",
+            ]),
             "environments-one-line-mod-lines4.tex",
         ),
         c(
             "environments-one-line.tex",
-            s(&["-s", "-l=env-all-on,env-mod-lines5", "-m", "-o=+-mod-lines5"]),
+            s(&[
+                "-s",
+                "-l=env-all-on,env-mod-lines5",
+                "-m",
+                "-o=+-mod-lines5",
+            ]),
             "environments-one-line-mod-lines5.tex",
         ),
         // L32：`-w` + `-o`，-o 优先（LogFile.pm：-w 被置 0）
@@ -408,12 +422,20 @@ fn group_percent_and_global() -> Vec<CaseSpec> {
         ),
         c(
             "environments-simple.tex",
-            s(&["-s", "-l=env-all-on,noAdditionalIndentGlobal", "-o=+-global"]),
+            s(&[
+                "-s",
+                "-l=env-all-on,noAdditionalIndentGlobal",
+                "-o=+-global",
+            ]),
             "environments-simple-global.tex",
         ),
         c(
             "environments-ifelsefi.tex",
-            s(&["-s", "-l=env-all-on,noAdditionalIndentGlobal", "-o=+-global"]),
+            s(&[
+                "-s",
+                "-l=env-all-on,noAdditionalIndentGlobal",
+                "-o=+-global",
+            ]),
             "environments-ifelsefi-global.tex",
         ),
         c(
@@ -518,11 +540,7 @@ fn group_yaml_switch() -> Vec<CaseSpec> {
         ),
         c(
             "environments-nested-fourth.tex",
-            s(&[
-                "-s",
-                "-o=+-yaml-switch2",
-                r#"-y=defaultIndent: '\t\t\t\t'"#,
-            ]),
+            s(&["-s", "-o=+-yaml-switch2", r#"-y=defaultIndent: '\t\t\t\t'"#]),
             "environments-nested-fourth-yaml-switch2.tex",
         ),
         c(
@@ -848,5 +866,3 @@ fn crlf_does_not_accumulate_trailing_indent() {
         );
     }
 }
-
-

@@ -1,6 +1,7 @@
 //! 空行保护（对应 LatexIndent/BlankLines.pm）。
 
-use crate::settings::{as_bool, as_i64, get, get_path};
+use crate::patterns::esc_lit;
+use crate::settings::{as_bool, as_i64, get_path};
 use crate::state;
 use crate::tokens::tok;
 
@@ -47,12 +48,12 @@ pub fn condense_blank_lines(body: &str) -> String {
         .unwrap_or(1)
     });
     let mut replacement = String::new();
-    for i in 1..n.max(1) {
+    for _ in 1..n.max(1) {
         replacement.push_str(&t.blanklines);
         replacement.push('\n');
     }
     replacement.push_str(&t.blanklines);
-    let token_esc = regex_esc(&t.blanklines);
+    let token_esc = esc_lit(&t.blanklines);
     let re = crate::patterns::re_new(&format!(r"(?m)(?:{token_esc}\h*\R*\h*){{1,}}{token_esc}"))
         .unwrap();
     crate::patterns::replace_all_with(&body, &re, |_| replacement.clone())
@@ -72,15 +73,15 @@ pub fn unprotect_blank_lines(body: &str) -> String {
         }
         let before = body.clone();
         // 2) token 独占整行 → 删除
-        let re = crate::patterns::re_new(&format!(r"(?m)^\h*{}\h*$", regex_esc(&token))).unwrap();
+        let re = crate::patterns::re_new(&format!(r"(?m)^\h*{}\h*$", esc_lit(&token))).unwrap();
         body = crate::patterns::replace_all_with(&body, &re, |_| String::new());
         // 3) 行首 token（后有内容）→ 变换行
-        let re = crate::patterns::re_new(&format!(r"(?m)(^\h*){}", regex_esc(&token))).unwrap();
+        let re = crate::patterns::re_new(&format!(r"(?m)(^\h*){}", esc_lit(&token))).unwrap();
         body = crate::patterns::replace_all_with(&body, &re, |caps| {
             format!("\n{}", crate::patterns::gn(caps, 1))
         });
         // 4) 前后皆有内容
-        let re = crate::patterns::re_new(&format!(r"(?m)^(.*?){}\h*(.*?)\h*$", regex_esc(&token)))
+        let re = crate::patterns::re_new(&format!(r"(?m)^(.*?){}\h*(.*?)\h*$", esc_lit(&token)))
             .unwrap();
         body = crate::patterns::replace_all_with(&body, &re, |caps| {
             let a = crate::patterns::gn(caps, 1);
@@ -92,7 +93,7 @@ pub fn unprotect_blank_lines(body: &str) -> String {
             }
         });
         // 5) 仅后有内容
-        let re = crate::patterns::re_new(&format!(r"(?m)^{}\h*(.*?)$", regex_esc(&token))).unwrap();
+        let re = crate::patterns::re_new(&format!(r"(?m)^{}\h*(.*?)$", esc_lit(&token))).unwrap();
         body = crate::patterns::replace_all_with(&body, &re, |caps| {
             format!("{}\n", crate::patterns::gn(caps, 1))
         });
@@ -101,15 +102,4 @@ pub fn unprotect_blank_lines(body: &str) -> String {
         }
     }
     body
-}
-
-fn regex_esc(s: &str) -> String {
-    let mut out = String::new();
-    for ch in s.chars() {
-        if r"\.^$|?*+()[]{}".contains(ch) {
-            out.push('\\');
-        }
-        out.push(ch);
-    }
-    out
 }

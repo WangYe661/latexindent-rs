@@ -1,6 +1,7 @@
 //! 尾注释（对应 LatexIndent/TrailingComments.pm）。
 
-use crate::settings::{as_bool, get, get_path};
+use crate::patterns::esc_lit;
+use crate::settings::{as_bool, get_path};
 use crate::state;
 use crate::tokens::tok;
 
@@ -44,12 +45,14 @@ pub fn remove_trailing_comments(body: &str) -> String {
     });
     let re = crate::patterns::re_new(&format!(r"(?m){not_preceded_by}%({after_comment})$"))
         .expect("trailing comment regex");
+    // %*\begin{...} markup 检测（对齐块）：模式恒定，只编译一次
+    let re_markup =
+        crate::patterns::re_new(r"(?s)^\*\h*\\(?:begin|end)\{([^}]+)\}*").expect("align markup");
     let out = crate::patterns::replace_all_with(body, &re, |caps| {
         let value = crate::patterns::gn(caps, 1).to_string();
         // %*\begin{...} markup 检测（对齐块）
         let align_markup = {
-            let re2 = crate::patterns::re_new(r"(?s)^\*\h*\\(?:begin|end)\{([^}]+)\}*").unwrap();
-            match re2.captures(value.as_bytes()).unwrap() {
+            match re_markup.captures(value.as_bytes()).unwrap_or(None) {
                 Some(c) => {
                     let name = crate::patterns::gn(&c, 1);
                     // Perl：标量真值或映射（哈希引用恒真）均视为标记
@@ -83,8 +86,8 @@ pub fn remove_trailing_comments(body: &str) -> String {
     // Perl TrailingComments.pm:111-117 —— 记录文件是否以尾注释结束（-m 时）。
     // 对应 `=~ m/$trailingCommentRegExp\h*\Z/s`，其中 \Z 允许结尾一个换行。
     if crate::switches::with(|s| s.is_m_switch_active()) {
-        let tc_esc = regex_esc(&t.trailing_comment);
-        let eot_esc = regex_esc(&t.end_of_token);
+        let tc_esc = esc_lit(&t.trailing_comment);
+        let eot_esc = esc_lit(&t.end_of_token);
         let re_end =
             crate::patterns::re_new(&format!(r"(?s){not_preceded_by}%{tc_esc}\d+{eot_esc}\h*\Z"))
                 .expect("trailing comment end regex");
@@ -111,8 +114,8 @@ pub fn put_trailing_comments_back_in(body: &str) -> String {
         // 末尾注释补一个换行（Perl：s/($trailingCommentRegExp)\s*$/$1\n/s）
         let re = crate::patterns::re_new(&format!(
             r"(?s)(%{}\d+{})\s*$",
-            regex_esc(&t.trailing_comment),
-            regex_esc(&t.end_of_token)
+            esc_lit(&t.trailing_comment),
+            esc_lit(&t.end_of_token)
         ))
         .unwrap();
         body = crate::patterns::replace_all_with(&body, &re, |caps| {
@@ -121,7 +124,7 @@ pub fn put_trailing_comments_back_in(body: &str) -> String {
     }
     for c in comments.iter().rev() {
         let token = format!("%{}", c.id);
-        let esc = regex_esc(&token);
+        let esc = esc_lit(&token);
         // Perl：若注释 token 不在行尾（同行其后有非 % 内容），把注释移到行尾
         let re_cond =
             crate::patterns::re_new(&format!(r"(?m){esc}((?:(?!(?<!\\)%).*?))(\h*)?$")).unwrap();
@@ -139,15 +142,4 @@ pub fn put_trailing_comments_back_in(body: &str) -> String {
         }
     }
     body
-}
-
-pub(crate) fn regex_esc(s: &str) -> String {
-    let mut out = String::new();
-    for ch in s.chars() {
-        if r"\.^$|?*+()[]{}".contains(ch) {
-            out.push('\\');
-        }
-        out.push(ch);
-    }
-    out
 }

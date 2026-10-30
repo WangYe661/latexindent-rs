@@ -5,23 +5,113 @@ use common::{check, check_owned, report};
 
 #[test]
 fn blank_line_body() {
-    check("poly-switch-blank-line", "ifelsefi-simple-nested.tex", &["-s", "-m", "-y=modifyLineBreaks:ifElseFi:BodyStartsOnOwnLine:4", "-o=+-bl-mod1"], "ifelsefi-simple-nested-bl-mod1.tex");
-    check("poly-switch-blank-line", "ifelsefi-simple-nested.tex", &["-s", "-m", "-y=modifyLineBreaks:ifElseFi:FiStartsOnOwnLine:4", "-o=+-bl-fi-mod1"], "ifelsefi-simple-nested-bl-fi-mod1.tex");
-    check("poly-switch-blank-line", "ifelsefi-simple-nested.tex", &["-s", "-m", "-y=modifyLineBreaks:ifElseFi:FiFinishesWithLineBreak:4", "-o=+-bl-fi-fin-mod1"], "ifelsefi-simple-nested-bl-fi-fin-mod1.tex");
+    check(
+        "poly-switch-blank-line",
+        "ifelsefi-simple-nested.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:ifElseFi:BodyStartsOnOwnLine:4",
+            "-o=+-bl-mod1",
+        ],
+        "ifelsefi-simple-nested-bl-mod1.tex",
+    );
+    check(
+        "poly-switch-blank-line",
+        "ifelsefi-simple-nested.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:ifElseFi:FiStartsOnOwnLine:4",
+            "-o=+-bl-fi-mod1",
+        ],
+        "ifelsefi-simple-nested-bl-fi-mod1.tex",
+    );
+    check(
+        "poly-switch-blank-line",
+        "ifelsefi-simple-nested.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:ifElseFi:FiFinishesWithLineBreak:4",
+            "-o=+-bl-fi-fin-mod1",
+        ],
+        "ifelsefi-simple-nested-bl-fi-fin-mod1.tex",
+    );
 }
 
 #[test]
 fn blank_line_mand_args() {
-    check("poly-switch-blank-line", "mycommand.tex", &["-s", "-m", "-y=modifyLineBreaks:mandatoryArguments:LCuBStartsOnOwnLine:4", "-o=+-mod4-LCuB"], "mycommand-mod4-LCuB.tex");
-    check("poly-switch-blank-line", "mycommand.tex", &["-s", "-m", "-y=modifyLineBreaks:mandatoryArguments:RCuBStartsOnOwnLine:4", "-o=+-mod4-RCuB"], "mycommand-mod4-RCuB.tex");
-    check("poly-switch-blank-line", "mycommand.tex", &["-s", "-m", "-y=modifyLineBreaks:optionalArguments:LSqBStartsOnOwnLine:4", "-o=+-mod4-LSqB"], "mycommand-mod4-LSqB.tex");
+    check(
+        "poly-switch-blank-line",
+        "mycommand.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:mandatoryArguments:LCuBStartsOnOwnLine:4",
+            "-o=+-mod4-LCuB",
+        ],
+        "mycommand-mod4-LCuB.tex",
+    );
+    check(
+        "poly-switch-blank-line",
+        "mycommand.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:mandatoryArguments:RCuBStartsOnOwnLine:4",
+            "-o=+-mod4-RCuB",
+        ],
+        "mycommand-mod4-RCuB.tex",
+    );
+    check(
+        "poly-switch-blank-line",
+        "mycommand.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:optionalArguments:LSqBStartsOnOwnLine:4",
+            "-o=+-mod4-LSqB",
+        ],
+        "mycommand-mod4-LSqB.tex",
+    );
 }
 
 #[test]
 fn blank_line_commands() {
-    check("poly-switch-blank-line", "section1.tex", &["-s", "-m", "-y=modifyLineBreaks:mandatoryArguments:RCuBFinishesWithLineBreak:4", "-o=+-bl-beg-mod1"], "section1-bl-beg-mod1.tex");
-    check("poly-switch-blank-line", "section1.tex", &["-s", "-m", "-y=modifyLineBreaks:commands:CommandStartsOnOwnLine:4", "-o=+-bl-beg-head-mod1"], "section1-bl-beg-head-mod1.tex");
-    check("poly-switch-blank-line", "defn1.tex", &["-s", "-m", "-y=modifyLineBreaks:environments:defn:EndFinishesWithLineBreak:4", "-o=+-bl-beg-mod1"], "defn1-bl-beg-mod1.tex");
+    check(
+        "poly-switch-blank-line",
+        "section1.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:mandatoryArguments:RCuBFinishesWithLineBreak:4",
+            "-o=+-bl-beg-mod1",
+        ],
+        "section1-bl-beg-mod1.tex",
+    );
+    check(
+        "poly-switch-blank-line",
+        "section1.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:commands:CommandStartsOnOwnLine:4",
+            "-o=+-bl-beg-head-mod1",
+        ],
+        "section1-bl-beg-head-mod1.tex",
+    );
+    check(
+        "poly-switch-blank-line",
+        "defn1.tex",
+        &[
+            "-s",
+            "-m",
+            "-y=modifyLineBreaks:environments:defn:EndFinishesWithLineBreak:4",
+            "-o=+-bl-beg-mod1",
+        ],
+        "defn1-bl-beg-mod1.tex",
+    );
 }
 
 /// T1 搬运补齐：上游 poly-switch-blank-line-test-cases.sh 中此前未搬成断言的 16 条调用

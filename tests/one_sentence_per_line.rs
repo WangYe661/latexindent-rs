@@ -626,7 +626,13 @@ fn gaps_after_loop() {
         // L127–L130
         (
             "issue-376.tex",
-            &["-s", "-m", "-l=issue-376-orig,issue-419b", "-o=+-mod0", "-r"],
+            &[
+                "-s",
+                "-m",
+                "-l=issue-376-orig,issue-419b",
+                "-o=+-mod0",
+                "-r",
+            ],
             "issue-376-mod0.tex",
         ),
         (
@@ -826,4 +832,3 @@ fn opl_after_loop() {
     gaps_after_loop();
     report();
 }
-

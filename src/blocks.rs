@@ -109,7 +109,6 @@ fn indent_after_items(name: &str) -> bool {
 }
 
 fn render_environment(caps: &Captures, leading: &str, current_indent: &str, is_m: bool) -> String {
-    let t = tok(|t| t.clone());
     let env_begin = gs(caps, "ENVBEGIN").unwrap_or("");
     let name = gs(caps, "ENVNAME").unwrap_or_default();
     let mut begin = format!("{leading}{env_begin}");
@@ -122,7 +121,6 @@ fn render_environment(caps: &Captures, leading: &str, current_indent: &str, is_m
     let os = settings_for(name, "environments", true, is_m);
 
     // 参数处理
-    let mut had_args = false;
     if !arg_body.is_empty() {
         logger::trace(&format!("*found: arguments for {name} environment"));
         logger::trace(&arg_body);
@@ -150,7 +148,6 @@ fn render_environment(caps: &Captures, leading: &str, current_indent: &str, is_m
             body = lb + &body;
             arg_body = String::new();
         } else {
-            had_args = true;
             arg_body = indent_all_args(name, "environments", &arg_body, current_indent);
         }
     } else {
@@ -259,7 +256,6 @@ fn render_environment(caps: &Captures, leading: &str, current_indent: &str, is_m
             body = strip_first_indent(&body, &added);
         }
     }
-    let _ = t;
     begin + &body + &end
 }
 
@@ -546,7 +542,6 @@ fn render_thing_with_args(
     current_indent: &str,
     is_m: bool,
 ) -> String {
-    let t = tok(|t| t.clone());
     let arg_body = gs(caps, "ARGUMENTS").unwrap_or("");
     let (mut begin, name, yaml_name, mut key_equals_value): (String, String, &str, String) =
         if g(caps, "COMMAND").is_some() {
@@ -633,7 +628,6 @@ fn render_thing_with_args(
             let v_es = poly("EqualsStartsOnOwnLine");
             let v_ef = poly("EqualsFinishesWithLineBreak");
             if v_es != 0 || v_ef != 0 {
-                let t2 = tok(|t| t.clone());
                 let mut kev = key_equals_value.clone();
                 kev = kev.replacen('=', "", 1);
                 let lead_re = crate::patterns::re_new(&format!(
@@ -669,7 +663,6 @@ fn render_thing_with_args(
                 m.body.push_str(&m.end);
                 m.body = crate::mlb::after_indentation_token_adjust(&m.body);
                 key_equals_value = m.body;
-                let _ = t2;
             }
             // 恒定段：第一个 = 之后的内容并入参数体
             if let Some(pos) = key_equals_value.find('=') {
@@ -713,7 +706,6 @@ fn render_thing_with_args(
     } else {
         body
     };
-    let _ = t;
     begin + &body + &arg_body
 }
 
@@ -801,7 +793,7 @@ pub fn indent_all_args(name: &str, yaml_name: &str, body: &str, current_indent: 
         }
 
         // -m：单个参数的 poly-switch（左花括号/方括号起止换行）
-        let mut arg_body_starts_own_line;
+        let arg_body_starts_own_line;
         if is_m {
             let get2 = |map: &std::collections::HashMap<String, i64>, k: &str| -> i64 {
                 *map.get(k).unwrap_or(&0)
@@ -1201,7 +1193,6 @@ fn make_middle_regex(src: &str) -> Regex {
 pub fn find_env_items(body: &str, name: &str, current_indent: &str) -> String {
     let is_m = switches::with(|s| s.is_m_switch_active());
     logger::trace(&format!("looking for items for {name}"));
-    let item_re_src = ();
 
     // 先处理首个 item 之前的内容（Perl: split 后 shift 出来单独递归）
     let (before, after) = state::patterns(|p| match p.re_item.find(body.as_bytes()).unwrap() {
@@ -1209,14 +1200,14 @@ pub fn find_env_items(body: &str, name: &str, current_indent: &str) -> String {
         Some(_) => (String::new(), body.to_string()),
         None => (body.to_string(), String::new()),
     });
-    let mut out = find_all_code_blocks(&before, current_indent);
+    let out = find_all_code_blocks(&before, current_indent);
 
     let rendered = state::patterns(|p| {
         replace_all_with(&after, &p.re_item, |caps| {
             let ws = gws(caps);
             let item_begin = gs(caps, "ITEMBEGIN").unwrap_or("");
             let mut body = gs(caps, "ITEMBODY").unwrap_or("").to_string();
-            let mut linebreaks_at_end_begin;
+            let linebreaks_at_end_begin;
             let mut begin = format!("{ws}{item_begin}");
             let name: String = begin
                 .chars()
@@ -1324,17 +1315,6 @@ pub fn find_env_items(body: &str, name: &str, current_indent: &str) -> String {
         });
         out = out.replace(&t.m_else_trailing_space, "");
         out = crate::mlb::line_break_token_adjust(&out);
-    }
-    out
-}
-
-fn regex_escape(s: &str) -> String {
-    let mut out = String::new();
-    for ch in s.chars() {
-        if r"\.^$|?*+()[]{}".contains(ch) {
-            out.push('\\');
-        }
-        out.push(ch);
     }
     out
 }

@@ -1,16 +1,26 @@
 //! 文本折行（textWrapOptions）与行选择（-n/--lines）测试。
 mod common;
-use common::{check, check_owned, check_overwrite, report};
+use common::{check, check_overwrite, check_owned, report};
 
 // ---- text-wrap ----
 #[test]
 fn long_lines1() {
-    check("text-wrap", "long-lines1.tex", &["-s", "-o=+-default"], "long-lines1-default.tex");
+    check(
+        "text-wrap",
+        "long-lines1.tex",
+        &["-s", "-o=+-default"],
+        "long-lines1-default.tex",
+    );
 }
 
 #[test]
 fn long_lines2() {
-    check("text-wrap", "long-lines2.tex", &["-s", "-o=+-default"], "long-lines2-default.tex");
+    check(
+        "text-wrap",
+        "long-lines2.tex",
+        &["-s", "-o=+-default"],
+        "long-lines2-default.tex",
+    );
 }
 
 // ---- 行选择 ----
@@ -27,30 +37,101 @@ fn lines_3_5() {
 #[test]
 #[ignore = "known gap: -r substitution 带 /e（text-wrap-4.yaml 的 ruler 替换是 Perl eval 代码块），用户明确暂缓"]
 fn text_wrap_jowens_short_ruler() {
-    check("text-wrap", "jowens-short.tex", &["-s", "-o=+-mod-4", "-l=text-wrap-4", "-m", "-r"], "jowens-short-mod-4.tex");
+    check(
+        "text-wrap",
+        "jowens-short.tex",
+        &["-s", "-o=+-mod-4", "-l=text-wrap-4", "-m", "-r"],
+        "jowens-short-mod-4.tex",
+    );
 }
 
 #[test]
 fn text_wrap_jowens() {
-    check("text-wrap", "jowens-long.tex", &["-s", "-o=+-mod-4", "-l=text-wrap-4", "-m"], "jowens-long-mod-4.tex");
-    check("text-wrap", "long-lines1.tex", &["-s", "-o=+-mod-6", "-l=text-wrap-4,not-stop-comment-block", "-m"], "long-lines1-mod-6.tex");
-    check("text-wrap", "long-lines4.tex", &["-s", "-o=+-mod-6", "-l=text-wrap-6", "-m"], "long-lines4-mod-6.tex");
+    check(
+        "text-wrap",
+        "jowens-long.tex",
+        &["-s", "-o=+-mod-4", "-l=text-wrap-4", "-m"],
+        "jowens-long-mod-4.tex",
+    );
+    check(
+        "text-wrap",
+        "long-lines1.tex",
+        &[
+            "-s",
+            "-o=+-mod-6",
+            "-l=text-wrap-4,not-stop-comment-block",
+            "-m",
+        ],
+        "long-lines1-mod-6.tex",
+    );
+    check(
+        "text-wrap",
+        "long-lines4.tex",
+        &["-s", "-o=+-mod-6", "-l=text-wrap-6", "-m"],
+        "long-lines4-mod-6.tex",
+    );
 }
 
 #[test]
 fn text_wrap_verbatim() {
-    check("text-wrap", "verbatim-long-lines.tex", &["-s", "-m", "-o=verbatim-long-lines-mod1", "-l=text-wrap-1", "-y=modifyLineBreaks:textWrapOptions:huge:wrap"], "verbatim-long-lines-mod1.tex");
-    check("text-wrap", "verbatim2.tex", &["-s", "-m", "-o=+-mod1", "-l=verbatim1"], "verbatim2-mod1.tex");
-    check("text-wrap", "verbatim2.tex", &["-s", "-m", "-o=+-mod2", "-l=verbatim2"], "verbatim2-mod2.tex");
+    check(
+        "text-wrap",
+        "verbatim-long-lines.tex",
+        &[
+            "-s",
+            "-m",
+            "-o=verbatim-long-lines-mod1",
+            "-l=text-wrap-1",
+            "-y=modifyLineBreaks:textWrapOptions:huge:wrap",
+        ],
+        "verbatim-long-lines-mod1.tex",
+    );
+    check(
+        "text-wrap",
+        "verbatim2.tex",
+        &["-s", "-m", "-o=+-mod1", "-l=verbatim1"],
+        "verbatim2-mod1.tex",
+    );
+    check(
+        "text-wrap",
+        "verbatim2.tex",
+        &["-s", "-m", "-o=+-mod2", "-l=verbatim2"],
+        "verbatim2-mod2.tex",
+    );
 }
 
 #[test]
 fn remove_para_line_breaks() {
-    check("text-wrap", "jowens-short-multi-line.tex", &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+0"], "jowens-short-multi-line0.tex");
-    check("text-wrap", "jowens-short-multi-line.tex", &["-m", "-s", "-l=removeParaLineBreaks1", "-o=+1"], "jowens-short-multi-line1.tex");
-    check("text-wrap", "multi-object.tex", &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+0"], "multi-object0.tex");
-    check("text-wrap", "trailingComments.tex", &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+0"], "trailingComments0.tex");
-    check("text-wrap", "chapter-file.tex", &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+0"], "chapter-file0.tex");
+    check(
+        "text-wrap",
+        "jowens-short-multi-line.tex",
+        &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+0"],
+        "jowens-short-multi-line0.tex",
+    );
+    check(
+        "text-wrap",
+        "jowens-short-multi-line.tex",
+        &["-m", "-s", "-l=removeParaLineBreaks1", "-o=+1"],
+        "jowens-short-multi-line1.tex",
+    );
+    check(
+        "text-wrap",
+        "multi-object.tex",
+        &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+0"],
+        "multi-object0.tex",
+    );
+    check(
+        "text-wrap",
+        "trailingComments.tex",
+        &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+0"],
+        "trailingComments0.tex",
+    );
+    check(
+        "text-wrap",
+        "chapter-file.tex",
+        &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+0"],
+        "chapter-file0.tex",
+    );
 }
 
 /// 上游 L83-85：`cp indent.log file-contents-warn1.txt` + 两处 `perl -p0i` 截取
@@ -81,9 +162,29 @@ fn text_wrap_file_contents_warn_log() {
 
 #[test]
 fn text_wrap_misc() {
-    check("text-wrap", "key-equals-value.tex", &["-m", "-s", "-l=key-equals-value", "-o=+0"], "key-equals-value0.tex");
-    check("text-wrap", "unnamed-group-braces.tex", &["-m", "-s", "-l=removeParaLineBreaks0,unnamed-braces", "-o=+0"], "unnamed-group-braces0.tex");
-    check("text-wrap", "jowens-short-multi-line-stop.tex", &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+-mod0"], "jowens-short-multi-line-stop-mod0.tex");
+    check(
+        "text-wrap",
+        "key-equals-value.tex",
+        &["-m", "-s", "-l=key-equals-value", "-o=+0"],
+        "key-equals-value0.tex",
+    );
+    check(
+        "text-wrap",
+        "unnamed-group-braces.tex",
+        &[
+            "-m",
+            "-s",
+            "-l=removeParaLineBreaks0,unnamed-braces",
+            "-o=+0",
+        ],
+        "unnamed-group-braces0.tex",
+    );
+    check(
+        "text-wrap",
+        "jowens-short-multi-line-stop.tex",
+        &["-m", "-s", "-l=removeParaLineBreaks0", "-o=+-mod0"],
+        "jowens-short-multi-line-stop-mod0.tex",
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -176,7 +277,12 @@ fn build_cases() -> Vec<WCase> {
         v.push(case(
             "verbatim",
             "verbatim4.tex",
-            &["-s", "-m", &format!("-l={shell}"), &format!("-o=+-mod{out}")],
+            &[
+                "-s",
+                "-m",
+                &format!("-l={shell}"),
+                &format!("-o=+-mod{out}"),
+            ],
             &format!("verbatim4-mod{n}.tex"),
         ));
     }
@@ -245,7 +351,12 @@ fn build_cases() -> Vec<WCase> {
     v.push(case(
         "plb",
         "chapter-file-par.tex",
-        &["-m", "-s", "-l=removeParaLineBreaks0", "-o=chapter-file-par0"],
+        &[
+            "-m",
+            "-s",
+            "-l=removeParaLineBreaks0",
+            "-o=chapter-file-par0",
+        ],
         "chapter-file-par0.tex",
     ));
 
@@ -673,42 +784,154 @@ fn build_e_cases() -> Vec<WCase> {
     let cols = |n: u32| format!("modifyLineBreaks:textWrapOptions:columns:{n}");
 
     // L143-148：textwrap-bfccb / bfccb1 / bfccb2（addruler1 / addruler2）
-    v.push(case("e-dep", "textwrap-bfccb.tex",
-        &["-s", "-l", "textwrap-most-useful,test1,addruler1", "-m", "-r", "-o=+-mod1"], "textwrap-bfccb-mod1.tex"));
-    v.push(case("e-dep", "textwrap-bfccb.tex",
-        &["-s", "-l", "textwrap-most-useful,addruler1,test2", "-m", "-r", "-o=+-mod2"], "textwrap-bfccb-mod2.tex"));
-    v.push(case("e-dep", "textwrap-bfccb1.tex",
-        &["-s", "-l", "textwrap-most-useful,test1,addruler1", "-m", "-r", "-o=+-mod1"], "textwrap-bfccb1-mod1.tex"));
-    v.push(case("e-dep", "textwrap-bfccb1.tex",
-        &["-s", "-l", "textwrap-most-useful,test2,addruler1", "-m", "-r", "-o=+-mod2"], "textwrap-bfccb1-mod2.tex"));
-    v.push(case("e-dep", "textwrap-bfccb1.tex",
-        &["-s", "-l", "textwrap-most-useful,test3,addruler1", "-m", "-r", "-o=+-mod3"], "textwrap-bfccb1-mod3.tex"));
-    v.push(case("e-dep", "textwrap-bfccb2.tex",
-        &["-s", "-l", "textwrap-most-useful-preamble,addruler2", "-m", "-r", "-o=+-mod1"], "textwrap-bfccb2-mod1.tex"));
+    v.push(case(
+        "e-dep",
+        "textwrap-bfccb.tex",
+        &[
+            "-s",
+            "-l",
+            "textwrap-most-useful,test1,addruler1",
+            "-m",
+            "-r",
+            "-o=+-mod1",
+        ],
+        "textwrap-bfccb-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "textwrap-bfccb.tex",
+        &[
+            "-s",
+            "-l",
+            "textwrap-most-useful,addruler1,test2",
+            "-m",
+            "-r",
+            "-o=+-mod2",
+        ],
+        "textwrap-bfccb-mod2.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "textwrap-bfccb1.tex",
+        &[
+            "-s",
+            "-l",
+            "textwrap-most-useful,test1,addruler1",
+            "-m",
+            "-r",
+            "-o=+-mod1",
+        ],
+        "textwrap-bfccb1-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "textwrap-bfccb1.tex",
+        &[
+            "-s",
+            "-l",
+            "textwrap-most-useful,test2,addruler1",
+            "-m",
+            "-r",
+            "-o=+-mod2",
+        ],
+        "textwrap-bfccb1-mod2.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "textwrap-bfccb1.tex",
+        &[
+            "-s",
+            "-l",
+            "textwrap-most-useful,test3,addruler1",
+            "-m",
+            "-r",
+            "-o=+-mod3",
+        ],
+        "textwrap-bfccb1-mod3.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "textwrap-bfccb2.tex",
+        &[
+            "-s",
+            "-l",
+            "textwrap-most-useful-preamble,addruler2",
+            "-m",
+            "-r",
+            "-o=+-mod1",
+        ],
+        "textwrap-bfccb2-mod1.tex",
+    ));
 
     // L170-177：`for i in {1..7}` tw-tc（columns:-1，无 `/e`，已由 columns-m1 组覆盖）
     for i in 1..=7 {
-        v.push(case("e-dep", &format!("tw-tc{i}.tex"),
+        v.push(case(
+            "e-dep",
+            &format!("tw-tc{i}.tex"),
             &["-s", "-m", COLS_M1, "-o=+-mod1"],
-            &format!("tw-tc{i}-mod1.tex")));
+            &format!("tw-tc{i}-mod1.tex"),
+        ));
     }
 
     // L181-209：issue-359 族（`-r` + addruler 系列）
     let c80 = cols(80).to_string();
     let c60 = cols(60).to_string();
     let c40 = cols(40).to_string();
-    v.push(case("e-dep", "issue-306.tex",
-        &["-s", "-r", "-m", "-l", "issue-359a", "-y", &c80, "-o=+-mod1"], "issue-306-mod1.tex"));
+    v.push(case(
+        "e-dep",
+        "issue-306.tex",
+        &[
+            "-s",
+            "-r",
+            "-m",
+            "-l",
+            "issue-359a",
+            "-y",
+            &c80,
+            "-o=+-mod1",
+        ],
+        "issue-306-mod1.tex",
+    ));
     for (input, y, o, out) in [
         ("issue-359a.tex", None, "-o=+-mod1", "issue-359a-mod1.tex"),
         ("issue-359b.tex", None, "-o=+-mod1", "issue-359b-mod1.tex"),
         ("issue-359c.tex", None, "-o=+-mod1", "issue-359c-mod1.tex"),
-        ("issue-359a.tex", Some(c40.as_str()), "-o=+-mod2", "issue-359a-mod2.tex"),
-        ("issue-359b.tex", Some(c40.as_str()), "-o=+-mod2", "issue-359b-mod2.tex"),
-        ("issue-359c.tex", Some(c40.as_str()), "-o=+-mod2", "issue-359c-mod2.tex"),
-        ("issue-359a.tex", Some(c60.as_str()), "-o=+-mod3", "issue-359a-mod3.tex"),
-        ("issue-359b.tex", Some(c60.as_str()), "-o=+-mod3", "issue-359b-mod3.tex"),
-        ("issue-359c.tex", Some(c60.as_str()), "-o=+-mod3", "issue-359c-mod3.tex"),
+        (
+            "issue-359a.tex",
+            Some(c40.as_str()),
+            "-o=+-mod2",
+            "issue-359a-mod2.tex",
+        ),
+        (
+            "issue-359b.tex",
+            Some(c40.as_str()),
+            "-o=+-mod2",
+            "issue-359b-mod2.tex",
+        ),
+        (
+            "issue-359c.tex",
+            Some(c40.as_str()),
+            "-o=+-mod2",
+            "issue-359c-mod2.tex",
+        ),
+        (
+            "issue-359a.tex",
+            Some(c60.as_str()),
+            "-o=+-mod3",
+            "issue-359a-mod3.tex",
+        ),
+        (
+            "issue-359b.tex",
+            Some(c60.as_str()),
+            "-o=+-mod3",
+            "issue-359b-mod3.tex",
+        ),
+        (
+            "issue-359c.tex",
+            Some(c60.as_str()),
+            "-o=+-mod3",
+            "issue-359c-mod3.tex",
+        ),
     ] {
         let mut args = vec!["-s", "-r", "-m", "-l", "issue-359a"];
         if let Some(y) = y {
@@ -718,44 +941,167 @@ fn build_e_cases() -> Vec<WCase> {
         args.push(o);
         v.push(case("e-dep", input, &args, out));
     }
-    v.push(case("e-dep", "issue-359a.tex",
-        &["-s", "-r", "-m", "-l", "issue-359d", "-y", &c60, "-o=+-mod5"], "issue-359a-mod5.tex"));
-    v.push(case("e-dep", "issue-359a.tex",
-        &["-s", "-r", "-m", "-l", "issue-359e", "-y", &c60, "-o=+-mod6"], "issue-359a-mod6.tex"));
-    v.push(case("e-dep", "issue-359a.tex",
-        &["-s", "-r", "-m", "-l", "issue-359b", "-o=+-mod4"], "issue-359a-mod4.tex"));
-    v.push(case("e-dep", "issue-359d.tex",
-        &["-s", "-r", "-m", "-l", "issue-359b", "-o=+-mod1"], "issue-359d-mod1.tex"));
-    v.push(case("e-dep", "issue-359d.tex",
-        &["-s", "-r", "-m", "-l", "issue-359b", "-y", &c40, "-o=+-mod2"], "issue-359d-mod2.tex"));
-    v.push(case("e-dep", "issue-359e.tex",
-        &["-s", "-r", "-m", "-l", "issue-359b", "-o=+-mod1"], "issue-359e-mod1.tex"));
-    v.push(case("e-dep", "issue-359e.tex",
-        &["-s", "-r", "-m", "-l", "issue-359c", "-o=+-mod2"], "issue-359e-mod2.tex"));
+    v.push(case(
+        "e-dep",
+        "issue-359a.tex",
+        &[
+            "-s",
+            "-r",
+            "-m",
+            "-l",
+            "issue-359d",
+            "-y",
+            &c60,
+            "-o=+-mod5",
+        ],
+        "issue-359a-mod5.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-359a.tex",
+        &[
+            "-s",
+            "-r",
+            "-m",
+            "-l",
+            "issue-359e",
+            "-y",
+            &c60,
+            "-o=+-mod6",
+        ],
+        "issue-359a-mod6.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-359a.tex",
+        &["-s", "-r", "-m", "-l", "issue-359b", "-o=+-mod4"],
+        "issue-359a-mod4.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-359d.tex",
+        &["-s", "-r", "-m", "-l", "issue-359b", "-o=+-mod1"],
+        "issue-359d-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-359d.tex",
+        &[
+            "-s",
+            "-r",
+            "-m",
+            "-l",
+            "issue-359b",
+            "-y",
+            &c40,
+            "-o=+-mod2",
+        ],
+        "issue-359d-mod2.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-359e.tex",
+        &["-s", "-r", "-m", "-l", "issue-359b", "-o=+-mod1"],
+        "issue-359e-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-359e.tex",
+        &["-s", "-r", "-m", "-l", "issue-359c", "-o=+-mod2"],
+        "issue-359e-mod2.tex",
+    ));
 
     // L211-212：issue-356（addruler3）
-    v.push(case("e-dep", "issue-356.tex",
-        &["-s", "-r", "-m", "-l", "issue-356,addruler3", "-o=+-mod1"], "issue-356-mod1.tex"));
-    v.push(case("e-dep", "issue-356.tex",
-        &["-s", "-r", "-m", "-l", "issue-356a,addruler3", "-o=+-mod2"], "issue-356-mod2.tex"));
+    v.push(case(
+        "e-dep",
+        "issue-356.tex",
+        &["-s", "-r", "-m", "-l", "issue-356,addruler3", "-o=+-mod1"],
+        "issue-356-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-356.tex",
+        &["-s", "-r", "-m", "-l", "issue-356a,addruler3", "-o=+-mod2"],
+        "issue-356-mod2.tex",
+    ));
 
     // L215-240：issue-389a..l（wrap-comments* + addruler1），mod 号不连续，按产物名推导
     for (input, l, out) in [
-        ("issue-389a.tex", "wrap-comments,addruler1", "issue-389a-mod1.tex"),
-        ("issue-389b.tex", "wrap-comments,addruler1", "issue-389b-mod1.tex"),
-        ("issue-389c.tex", "wrap-comments,addruler1", "issue-389c-mod1.tex"),
-        ("issue-389c.tex", "wrap-comments2,addruler1", "issue-389c-mod2.tex"),
-        ("issue-389d.tex", "wrap-comments,addruler1", "issue-389d-mod1.tex"),
-        ("issue-389e.tex", "wrap-comments,addruler1", "issue-389e-mod1.tex"),
-        ("issue-389e.tex", "wrap-comments2,addruler1", "issue-389e-mod2.tex"),
-        ("issue-389f.tex", "wrap-comments3,addruler1", "issue-389f-mod1.tex"),
-        ("issue-389g.tex", "wrap-comments2,addruler1", "issue-389g-mod2.tex"),
-        ("issue-389h.tex", "wrap-comments2,addruler1", "issue-389h-mod2.tex"),
-        ("issue-389i.tex", "wrap-comments2,addruler1", "issue-389i-mod2.tex"),
-        ("issue-389j.tex", "wrap-comments2,addruler1,inherit-leading-space", "issue-389j-mod2.tex"),
-        ("issue-389k.tex", "wrap-comments2,addruler1,inherit-leading-space", "issue-389k-mod2.tex"),
-        ("issue-389l.tex", "wrap-comments4,addruler1", "issue-389l-mod2.tex"),
-        ("issue-389l.tex", "wrap-comments5,addruler1", "issue-389l-mod3.tex"),
+        (
+            "issue-389a.tex",
+            "wrap-comments,addruler1",
+            "issue-389a-mod1.tex",
+        ),
+        (
+            "issue-389b.tex",
+            "wrap-comments,addruler1",
+            "issue-389b-mod1.tex",
+        ),
+        (
+            "issue-389c.tex",
+            "wrap-comments,addruler1",
+            "issue-389c-mod1.tex",
+        ),
+        (
+            "issue-389c.tex",
+            "wrap-comments2,addruler1",
+            "issue-389c-mod2.tex",
+        ),
+        (
+            "issue-389d.tex",
+            "wrap-comments,addruler1",
+            "issue-389d-mod1.tex",
+        ),
+        (
+            "issue-389e.tex",
+            "wrap-comments,addruler1",
+            "issue-389e-mod1.tex",
+        ),
+        (
+            "issue-389e.tex",
+            "wrap-comments2,addruler1",
+            "issue-389e-mod2.tex",
+        ),
+        (
+            "issue-389f.tex",
+            "wrap-comments3,addruler1",
+            "issue-389f-mod1.tex",
+        ),
+        (
+            "issue-389g.tex",
+            "wrap-comments2,addruler1",
+            "issue-389g-mod2.tex",
+        ),
+        (
+            "issue-389h.tex",
+            "wrap-comments2,addruler1",
+            "issue-389h-mod2.tex",
+        ),
+        (
+            "issue-389i.tex",
+            "wrap-comments2,addruler1",
+            "issue-389i-mod2.tex",
+        ),
+        (
+            "issue-389j.tex",
+            "wrap-comments2,addruler1,inherit-leading-space",
+            "issue-389j-mod2.tex",
+        ),
+        (
+            "issue-389k.tex",
+            "wrap-comments2,addruler1,inherit-leading-space",
+            "issue-389k-mod2.tex",
+        ),
+        (
+            "issue-389l.tex",
+            "wrap-comments4,addruler1",
+            "issue-389l-mod2.tex",
+        ),
+        (
+            "issue-389l.tex",
+            "wrap-comments5,addruler1",
+            "issue-389l-mod3.tex",
+        ),
     ] {
         let arg = format!("-l={l}");
         let m = out.rsplit("-mod").next().unwrap();
@@ -764,8 +1110,12 @@ fn build_e_cases() -> Vec<WCase> {
     }
 
     // L245-257：issue-444 族
-    v.push(case("e-dep", "issue-444a.tex",
-        &["-s", "-m", "-r", "-l", "issue-444", "-o=+-mod1"], "issue-444a-mod1.tex"));
+    v.push(case(
+        "e-dep",
+        "issue-444a.tex",
+        &["-s", "-m", "-r", "-l", "issue-444", "-o=+-mod1"],
+        "issue-444a-mod1.tex",
+    ));
     for (l, out) in [
         ("issue-444", "issue-444b-mod1.tex"),
         ("issue-444c", "issue-444b-mod2.tex"),
@@ -776,35 +1126,93 @@ fn build_e_cases() -> Vec<WCase> {
         let arg = format!("-l={l}");
         let m = out.rsplit("-mod").next().unwrap();
         let o = format!("-o=+-mod{}", m.trim_end_matches(".tex"));
-        v.push(case("e-dep", "issue-444b.tex", &["-s", "-m", "-r", &arg, &o], out));
+        v.push(case(
+            "e-dep",
+            "issue-444b.tex",
+            &["-s", "-m", "-r", &arg, &o],
+            out,
+        ));
     }
-    v.push(case("e-dep", "issue-444c.tex",
-        &["-s", "-m", "-r", "-l", "issue-444g", "-o=+-mod1"], "issue-444c-mod1.tex"));
+    v.push(case(
+        "e-dep",
+        "issue-444c.tex",
+        &["-s", "-m", "-r", "-l", "issue-444g", "-o=+-mod1"],
+        "issue-444c-mod1.tex",
+    ));
 
     // L259-269：issue-450 族
-    v.push(case("e-dep", "issue-450a.tex",
-        &["-s", "-m", "-r", "-l", "issue-450", "-o=+-mod1"], "issue-450a-mod1.tex"));
-    v.push(case("e-dep", "issue-450b.tex",
-        &["-s", "-m", "-r", "-l", "issue-450", "-o=+-mod1"], "issue-450b-mod1.tex"));
-    v.push(case("e-dep", "issue-450c.tex",
-        &["-s", "-m", "-r", "-l", "issue-450a", "-o=+-mod1"], "issue-450c-mod1.tex"));
+    v.push(case(
+        "e-dep",
+        "issue-450a.tex",
+        &["-s", "-m", "-r", "-l", "issue-450", "-o=+-mod1"],
+        "issue-450a-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-450b.tex",
+        &["-s", "-m", "-r", "-l", "issue-450", "-o=+-mod1"],
+        "issue-450b-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-450c.tex",
+        &["-s", "-m", "-r", "-l", "issue-450a", "-o=+-mod1"],
+        "issue-450c-mod1.tex",
+    ));
     let c89 = cols(89).to_string();
-    v.push(case("e-dep", "issue-450d.tex",
-        &["-s", "-m", "-r", "-l", "issue-450a", "-o=+-mod1", "-y", &c89], "issue-450d-mod1.tex"));
-    v.push(case("e-dep", "issue-450e.tex",
-        &["-s", "-m", "-r", "-l", "issue-450", "-o=+-mod1"], "issue-450e-mod1.tex"));
-    v.push(case("e-dep", "issue-450f.tex",
-        &["-s", "-m", "-r", "-l", "issue-450", "-o=+-mod1"], "issue-450f-mod1.tex"));
+    v.push(case(
+        "e-dep",
+        "issue-450d.tex",
+        &[
+            "-s",
+            "-m",
+            "-r",
+            "-l",
+            "issue-450a",
+            "-o=+-mod1",
+            "-y",
+            &c89,
+        ],
+        "issue-450d-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-450e.tex",
+        &["-s", "-m", "-r", "-l", "issue-450", "-o=+-mod1"],
+        "issue-450e-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-450f.tex",
+        &["-s", "-m", "-r", "-l", "issue-450", "-o=+-mod1"],
+        "issue-450f-mod1.tex",
+    ));
 
     // L277-281：issue-499 / issue-502（addruler2）
-    v.push(case("e-dep", "issue-499.tex",
-        &["-s", "-m", "-l", "issue-499,addruler2", "-r", "-o=+-mod1"], "issue-499-mod1.tex"));
-    v.push(case("e-dep", "issue-499.tex",
-        &["-s", "-m", "-l", "issue-499a,addruler2", "-r", "-o=+-mod2"], "issue-499-mod2.tex"));
-    v.push(case("e-dep", "issue-502.tex",
-        &["-s", "-m", "-r", "-l", "issue-502,addruler2", "-o=+-mod1"], "issue-502-mod1.tex"));
-    v.push(case("e-dep", "issue-502a.tex",
-        &["-s", "-m", "-r", "-l", "issue-502a,addruler2", "-o=+-mod1"], "issue-502a-mod1.tex"));
+    v.push(case(
+        "e-dep",
+        "issue-499.tex",
+        &["-s", "-m", "-l", "issue-499,addruler2", "-r", "-o=+-mod1"],
+        "issue-499-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-499.tex",
+        &["-s", "-m", "-l", "issue-499a,addruler2", "-r", "-o=+-mod2"],
+        "issue-499-mod2.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-502.tex",
+        &["-s", "-m", "-r", "-l", "issue-502,addruler2", "-o=+-mod1"],
+        "issue-502-mod1.tex",
+    ));
+    v.push(case(
+        "e-dep",
+        "issue-502a.tex",
+        &["-s", "-m", "-r", "-l", "issue-502a,addruler2", "-o=+-mod1"],
+        "issue-502a-mod1.tex",
+    ));
 
     v
 }
@@ -813,30 +1221,63 @@ fn build_e_cases() -> Vec<WCase> {
 /// 列出的产物在 `text_wrap_e_dependent_pending`（`#[ignore]`）中执行；启用 T2 后把它们
 /// 清空即可让这些断言并入 `text_wrap_e_dependent`。
 const E_PENDING: &[&str] = &[
-    "textwrap-bfccb-mod1.tex", "textwrap-bfccb-mod2.tex",
-    "textwrap-bfccb1-mod1.tex", "textwrap-bfccb1-mod2.tex", "textwrap-bfccb1-mod3.tex",
+    "textwrap-bfccb-mod1.tex",
+    "textwrap-bfccb-mod2.tex",
+    "textwrap-bfccb1-mod1.tex",
+    "textwrap-bfccb1-mod2.tex",
+    "textwrap-bfccb1-mod3.tex",
     "textwrap-bfccb2-mod1.tex",
     "issue-306-mod1.tex",
-    "issue-359a-mod1.tex", "issue-359b-mod1.tex", "issue-359c-mod1.tex",
-    "issue-359a-mod2.tex", "issue-359b-mod2.tex", "issue-359c-mod2.tex",
-    "issue-359a-mod3.tex", "issue-359b-mod3.tex", "issue-359c-mod3.tex",
-    "issue-359a-mod4.tex", "issue-359a-mod5.tex", "issue-359a-mod6.tex",
-    "issue-359d-mod1.tex", "issue-359d-mod2.tex",
-    "issue-359e-mod1.tex", "issue-359e-mod2.tex",
-    "issue-356-mod1.tex", "issue-356-mod2.tex",
-    "issue-389a-mod1.tex", "issue-389b-mod1.tex",
-    "issue-389c-mod1.tex", "issue-389c-mod2.tex",
-    "issue-389d-mod1.tex", "issue-389e-mod1.tex", "issue-389e-mod2.tex",
-    "issue-389f-mod1.tex", "issue-389g-mod2.tex", "issue-389h-mod2.tex",
-    "issue-389i-mod2.tex", "issue-389j-mod2.tex", "issue-389k-mod2.tex",
-    "issue-389l-mod2.tex", "issue-389l-mod3.tex",
-    "issue-444a-mod1.tex", "issue-444b-mod1.tex", "issue-444b-mod2.tex",
-    "issue-444b-mod3.tex", "issue-444b-mod4.tex", "issue-444b-mod5.tex",
+    "issue-359a-mod1.tex",
+    "issue-359b-mod1.tex",
+    "issue-359c-mod1.tex",
+    "issue-359a-mod2.tex",
+    "issue-359b-mod2.tex",
+    "issue-359c-mod2.tex",
+    "issue-359a-mod3.tex",
+    "issue-359b-mod3.tex",
+    "issue-359c-mod3.tex",
+    "issue-359a-mod4.tex",
+    "issue-359a-mod5.tex",
+    "issue-359a-mod6.tex",
+    "issue-359d-mod1.tex",
+    "issue-359d-mod2.tex",
+    "issue-359e-mod1.tex",
+    "issue-359e-mod2.tex",
+    "issue-356-mod1.tex",
+    "issue-356-mod2.tex",
+    "issue-389a-mod1.tex",
+    "issue-389b-mod1.tex",
+    "issue-389c-mod1.tex",
+    "issue-389c-mod2.tex",
+    "issue-389d-mod1.tex",
+    "issue-389e-mod1.tex",
+    "issue-389e-mod2.tex",
+    "issue-389f-mod1.tex",
+    "issue-389g-mod2.tex",
+    "issue-389h-mod2.tex",
+    "issue-389i-mod2.tex",
+    "issue-389j-mod2.tex",
+    "issue-389k-mod2.tex",
+    "issue-389l-mod2.tex",
+    "issue-389l-mod3.tex",
+    "issue-444a-mod1.tex",
+    "issue-444b-mod1.tex",
+    "issue-444b-mod2.tex",
+    "issue-444b-mod3.tex",
+    "issue-444b-mod4.tex",
+    "issue-444b-mod5.tex",
     "issue-444c-mod1.tex",
-    "issue-450a-mod1.tex", "issue-450b-mod1.tex", "issue-450c-mod1.tex",
-    "issue-450d-mod1.tex", "issue-450e-mod1.tex", "issue-450f-mod1.tex",
-    "issue-499-mod1.tex", "issue-499-mod2.tex",
-    "issue-502-mod1.tex", "issue-502a-mod1.tex",
+    "issue-450a-mod1.tex",
+    "issue-450b-mod1.tex",
+    "issue-450c-mod1.tex",
+    "issue-450d-mod1.tex",
+    "issue-450e-mod1.tex",
+    "issue-450f-mod1.tex",
+    "issue-499-mod1.tex",
+    "issue-499-mod2.tex",
+    "issue-502-mod1.tex",
+    "issue-502a-mod1.tex",
 ];
 
 fn run_e_cases(pending: bool) {
@@ -966,7 +1407,9 @@ fn text_wrap_issue_5xx_6xx() {
 /// L162：`latexindent.pl -s issue-341-mod1 -m -l issue-341 -w`（与 L161 同产物）。
 #[test]
 fn text_wrap_issue_341_overwrite() {
-    check_overwrite("text-wrap", "issue-341-mod1.tex", &["-s", "-m", "-l=issue-341"]);
+    check_overwrite(
+        "text-wrap",
+        "issue-341-mod1.tex",
+        &["-s", "-m", "-l=issue-341"],
+    );
 }
-
-

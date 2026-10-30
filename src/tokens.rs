@@ -57,10 +57,12 @@ impl Tokens {
     /// 与正文冲突的 token 追加 "-LIN" 直到唯一（对应 token_check，忽略大小写）。
     pub fn check(&mut self, body: &str) {
         let hay = body.to_lowercase();
-        let all = self.all_mut();
-        for t in all {
-            while hay.contains(&t.to_lowercase()) {
+        for t in self.all_mut() {
+            // token 都是 ASCII（连 "-LIN" 也是），小写化一次即可，避免每轮重新分配
+            let mut low = t.to_lowercase();
+            while hay.contains(&low) {
                 t.push_str("-LIN");
+                low.push_str("-LIN");
             }
         }
     }

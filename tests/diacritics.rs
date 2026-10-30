@@ -28,24 +28,60 @@ fn diacritics_files_and_logs() {
     assert!(s.work.join("diacritics.log").is_file());
 
     // -o=+-mod1 命名
-    let out = s.run(&["-s", "äö.tex", "-l", "äö.yaml", "-g", "diacritics1.log", "-o=+-mod1"]);
+    let out = s.run(&[
+        "-s",
+        "äö.tex",
+        "-l",
+        "äö.yaml",
+        "-g",
+        "diacritics1.log",
+        "-o=+-mod1",
+    ]);
     assert!(out.status.success());
     s.assert_file("äö-mod1.tex", "äö-mod1.tex");
 
     // -c 变音符目录：日志落 cruft 目录，产物仍写工作目录
-    let out = s.run(&["-s", "äö.tex", "-l", "äö.yaml", "-g", "diacritics2.log", "-o=+-mod2", "-c", "./äö"]);
+    let out = s.run(&[
+        "-s",
+        "äö.tex",
+        "-l",
+        "äö.yaml",
+        "-g",
+        "diacritics2.log",
+        "-o=+-mod2",
+        "-c",
+        "./äö",
+    ]);
     assert!(out.status.success());
     s.assert_file("äö-mod2.tex", "äö-mod2.tex");
     assert!(s.work.join("äö").join("diacritics2.log").is_file());
 
     // -g 日志名带变音符
-    let out = s.run(&["-s", "äö.tex", "-l", "äö.yaml", "-g", "äö-log-file.log", "-o=+-mod3", "-c", "./äö"]);
+    let out = s.run(&[
+        "-s",
+        "äö.tex",
+        "-l",
+        "äö.yaml",
+        "-g",
+        "äö-log-file.log",
+        "-o=+-mod3",
+        "-c",
+        "./äö",
+    ]);
     assert!(out.status.success());
     s.assert_file("äö-mod3.tex", "äö-mod3.tex");
     assert!(s.work.join("äö").join("äö-log-file.log").is_file());
 
     // -o=+-äö1：输出名带变音符
-    let out = s.run(&["-s", "äö.tex", "-l", "äö.yaml", "-g", "diacritics3.log", "-o=+-äö1"]);
+    let out = s.run(&[
+        "-s",
+        "äö.tex",
+        "-l",
+        "äö.yaml",
+        "-g",
+        "diacritics3.log",
+        "-o=+-äö1",
+    ]);
     assert!(out.status.success());
     s.assert_file("äö-äö1.tex", "äö-äö1.tex");
 

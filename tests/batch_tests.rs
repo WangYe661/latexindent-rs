@@ -155,7 +155,12 @@ fn lines_and_check() {
     assert!(out.status.success(), "case6 应正常退出");
 
     // 7: --check 无差异 → 退出码 0
-    let mut args = vec!["--check".to_string(), "-s".to_string(), "-g".to_string(), "check-switch-pass.log".to_string()];
+    let mut args = vec![
+        "--check".to_string(),
+        "-s".to_string(),
+        "-g".to_string(),
+        "check-switch-pass.log".to_string(),
+    ];
     args.extend(lines_files.iter().cloned());
     let out = s.run(&sargs(&args));
     assert_eq!(out.status.code(), Some(0), "check-switch-pass 应退出 0");
@@ -181,12 +186,22 @@ fn lines_and_check() {
 fn fatal_files() {
     let s = Session::new(DIR, &[]);
     let lines_files = glob(&s, "lines", ".tex");
-    let mut args = vec!["-s".to_string(), "cmh.tex".to_string(), "-g".to_string(), "fatal-file-not-exist.log".to_string()];
+    let mut args = vec![
+        "-s".to_string(),
+        "cmh.tex".to_string(),
+        "-g".to_string(),
+        "fatal-file-not-exist.log".to_string(),
+    ];
     args.extend(lines_files.iter().cloned());
     let out = s.run(&sargs(&args));
     assert_eq!(out.status.code(), Some(3), "cmh.tex 不存在应退出 3");
 
-    let mut args = vec!["-s".to_string(), "cmh1.tex".to_string(), "-g".to_string(), "fatal-file-no-read.log".to_string()];
+    let mut args = vec![
+        "-s".to_string(),
+        "cmh1.tex".to_string(),
+        "-g".to_string(),
+        "fatal-file-no-read.log".to_string(),
+    ];
     args.extend(lines_files.iter().cloned());
     let out = s.run(&sargs(&args));
     assert_eq!(out.status.code(), Some(3), "cmh1.tex 不存在应退出 3");
@@ -228,6 +243,10 @@ fn local_settings_friends() {
         let s = Session::new(DIR, &[]);
         let out = s.run(&["-s", "-l", &format!("{dir}/mwe.tex")]);
         assert!(out.status.success(), "{dir} 应正常退出");
-        s.assert_log_grep(&format!("{dir}/indent.log"), "WARN:  yaml", &format!("{dir}/warnings.txt"));
+        s.assert_log_grep(
+            &format!("{dir}/indent.log"),
+            "WARN:  yaml",
+            &format!("{dir}/warnings.txt"),
+        );
     }
 }

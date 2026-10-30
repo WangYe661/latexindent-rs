@@ -378,5 +378,9 @@ fn opt_args_gaps_pending() {
 /// sh:63 `latexindent.pl env-third-opt-args-multiple-lines -w -s`（`-w` 不动点，无 `-o`）。
 #[test]
 fn opt_args_w_gap() {
-    check_overwrite("opt-args", "env-third-opt-args-multiple-lines.tex", &["-w", "-s"]);
+    check_overwrite(
+        "opt-args",
+        "env-third-opt-args-multiple-lines.tex",
+        &["-w", "-s"],
+    );
 }

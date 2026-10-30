@@ -19,6 +19,14 @@ impl Logger {
     }
 }
 
+/// 单线程 CLI 里这把锁不会被争用；即便某处 panic 毒化了锁，也不该让后续日志跟着崩。
+fn with_log<T>(f: impl FnOnce(&mut Logger) -> T) -> T {
+    let mut guard = LOG
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    f(&mut guard)
+}
+
 fn emit(msg: &str, star_prefix: &str, cont_indent: &str, always_print: bool) {
     let formatted = if let Some(rest) = msg.strip_prefix('*') {
         let head = format!("{star_prefix}{rest}");
@@ -31,19 +39,18 @@ fn emit(msg: &str, star_prefix: &str, cont_indent: &str, always_print: bool) {
     } else {
         prefix_lines_keep_tail(msg, cont_indent)
     };
-    let mut log = LOG.lock().unwrap();
-    log.lines.push(formatted.clone());
-    if log.screenlog || always_print {
+    let screenlog = with_log(|log| {
+        log.lines.push(formatted.clone());
+        log.screenlog
+    });
+    if screenlog || always_print {
         println!("{formatted}");
     }
 }
 
 /// Perl s/^/X/mg 等价：每行行首加前缀，但消息以换行结尾时末尾空段不加。
 fn prefix_lines_keep_tail(msg: &str, prefix: &str) -> String {
-    let mut parts: Vec<String> = msg
-        .split('\n')
-        .map(|l| format!("{prefix}{l}"))
-        .collect();
+    let mut parts: Vec<String> = msg.split('\n').map(|l| format!("{prefix}{l}")).collect();
     if msg.ends_with('\n') {
         if let Some(last) = parts.last_mut() {
             *last = String::new();
@@ -62,9 +69,11 @@ pub fn info(msg: &str) {
 pub fn warn(msg: &str) {
     if let Some(rest) = msg.strip_prefix('*') {
         let formatted = format!("WARN:  {rest}");
-        let mut log = LOG.lock().unwrap();
-        log.lines.push(formatted.clone());
-        if log.screenlog {
+        let screenlog = with_log(|log| {
+            log.lines.push(formatted.clone());
+            log.screenlog
+        });
+        if screenlog {
             println!("{formatted}");
         }
     } else {
@@ -88,9 +97,9 @@ pub fn fatal(msg: &str) {
             .collect::<Vec<_>>()
             .join("\n")
     };
-    let mut log = LOG.lock().unwrap();
-    log.lines.push(formatted.clone());
-    println!("{formatted}");
+    with_log(|log| log.lines.push(formatted.clone()));
+    // 诊断信息走 stderr：stdout 可能正被重定向为缩进后的文档
+    eprintln!("{formatted}");
 }
 
 /// trace：`*` 开头消息首行 "TRACE: "；否则每行 7 空格。
@@ -101,9 +110,11 @@ pub fn trace(msg: &str) {
     }
     if let Some(rest) = msg.strip_prefix('*') {
         let formatted = format!("TRACE: {rest}");
-        let mut log = LOG.lock().unwrap();
-        log.lines.push(formatted.clone());
-        if log.screenlog {
+        let screenlog = with_log(|log| {
+            log.lines.push(formatted.clone());
+            log.screenlog
+        });
+        if screenlog {
             println!("{formatted}");
         }
     } else {
@@ -112,13 +123,9 @@ pub fn trace(msg: &str) {
 }
 
 pub fn set_screenlog(on: bool) {
-    LOG.lock().unwrap().screenlog = on;
+    with_log(|log| log.screenlog = on);
 }
 
 pub fn take_lines() -> Vec<String> {
-    std::mem::take(&mut LOG.lock().unwrap().lines)
-}
-
-pub fn lines_snapshot() -> Vec<String> {
-    LOG.lock().unwrap().lines.clone()
+    with_log(|log| std::mem::take(&mut log.lines))
 }

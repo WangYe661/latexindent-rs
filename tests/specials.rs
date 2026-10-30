@@ -5,7 +5,12 @@ use common::{check, check_overwrite, check_owned, report};
 // ---- specials ----
 #[test]
 fn special_default() {
-    check("specials", "special1.tex", &["-s", "-o=special1-default"], "special1-default.tex");
+    check(
+        "specials",
+        "special1.tex",
+        &["-s", "-o=special1-default"],
+        "special1-default.tex",
+    );
 }
 
 #[test]
@@ -665,7 +670,12 @@ fn specials_pending() {
 // ---- ifelsefi ----
 #[test]
 fn ifelsefi_first() {
-    check("ifelsefi", "ifelsefi-first.tex", &["-s", "-o=+-mod0"], "ifelsefi-first-mod0.tex");
+    check(
+        "ifelsefi",
+        "ifelsefi-first.tex",
+        &["-s", "-o=+-mod0"],
+        "ifelsefi-first-mod0.tex",
+    );
 }
 
 #[test]
@@ -686,12 +696,22 @@ fn ifelsefi_small_overwrite() {
 // ---- items ----
 #[test]
 fn items_default() {
-    check("items", "items1.tex", &["-s", "-o=+-default"], "items1-default.tex");
+    check(
+        "items",
+        "items1.tex",
+        &["-s", "-o=+-default"],
+        "items1-default.tex",
+    );
 }
 
 #[test]
 fn items_mod1() {
-    check("items", "items1-5.tex", &["-s", "-o=+-mod1"], "items1-5-mod1.tex");
+    check(
+        "items",
+        "items1-5.tex",
+        &["-s", "-o=+-mod1"],
+        "items1-5-mod1.tex",
+    );
 }
 
 #[test]

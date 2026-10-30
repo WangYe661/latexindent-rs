@@ -8,10 +8,7 @@ use common::Session;
 const DIR: &str = "cruftdirectory";
 
 fn fresh_cruft(tag: &str) -> String {
-    let d = std::env::temp_dir().join(format!(
-        "latexindent-rs-cruft-{}-{tag}",
-        std::process::id()
-    ));
+    let d = std::env::temp_dir().join(format!("latexindent-rs-cruft-{}-{tag}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     d.to_string_lossy().to_string()
@@ -101,7 +98,10 @@ fn shared_desktop_tmp_cruft_dir() {
 
     let out = s.run(&["-s", "cruft-directory1", &c_arg, "-w", "-g=one.log"]);
     assert!(out.status.success(), "共享 cruft 第一条退出码非 0");
-    assert!(cruft.join("one.log").is_file(), "one.log 应落在共享 cruft 目录");
+    assert!(
+        cruft.join("one.log").is_file(),
+        "one.log 应落在共享 cruft 目录"
+    );
     assert!(
         cruft.join("cruft-directory1.bak0").is_file(),
         "第一条应在共享 cruft 目录写出 bak0"

@@ -38,7 +38,8 @@ impl Switches {
         }
         self.trace = self.ttrace || self.trace;
         self.check = self.check_verbose || self.check;
-        self.replacement = self.only_replacement || self.replacement_respect_verb || self.replacement;
+        self.replacement =
+            self.only_replacement || self.replacement_respect_verb || self.replacement;
     }
 
     pub fn is_m_switch_active(&self) -> bool {
@@ -104,13 +105,51 @@ pub fn parse_args(args: &[String]) -> (Switches, Vec<String>) {
             }
             // Getopt::Long 兼容：单破折号长名（-yaml=、-outputfile、-local 等）
             const NAMES: &[&str] = &[
-                "GCString", "wd", "kv", "rr", "rv", "sl", "tt", "vv",
-                "version", "vversion", "silent", "trace", "ttrace", "local", "yaml",
-                "onlydefault", "overwrite", "overwriteIfDifferent", "outputfile",
-                "modifylinebreaks", "logfile", "help", "cruft", "screenlog",
-                "replacement", "onlyreplacement", "replacementrespectverb",
-                "check", "checkv", "lines",
-                "v", "s", "t", "l", "y", "d", "w", "o", "m", "g", "h", "c", "r", "k", "n",
+                "GCString",
+                "wd",
+                "kv",
+                "rr",
+                "rv",
+                "sl",
+                "tt",
+                "vv",
+                "version",
+                "vversion",
+                "silent",
+                "trace",
+                "ttrace",
+                "local",
+                "yaml",
+                "onlydefault",
+                "overwrite",
+                "overwriteIfDifferent",
+                "outputfile",
+                "modifylinebreaks",
+                "logfile",
+                "help",
+                "cruft",
+                "screenlog",
+                "replacement",
+                "onlyreplacement",
+                "replacementrespectverb",
+                "check",
+                "checkv",
+                "lines",
+                "v",
+                "s",
+                "t",
+                "l",
+                "y",
+                "d",
+                "w",
+                "o",
+                "m",
+                "g",
+                "h",
+                "c",
+                "r",
+                "k",
+                "n",
             ];
             let (namepart, inline) = match body.split_once('=') {
                 Some((n, v)) => (n, Some(v.to_string())),
@@ -153,12 +192,20 @@ fn apply(
     mut val: Option<String>,
     it: &mut std::iter::Peekable<std::slice::Iter<String>>,
 ) {
-    use std::collections::HashMap;
     // 需要值的选项：无附加值时取下一个参数（与原版 -l myfile.tex 行为一致）
     let takes_value = matches!(
         name,
-        "l" | "local" | "y" | "yaml" | "o" | "outputfile" | "g" | "logfile" | "c" | "cruft"
-            | "n" | "lines"
+        "l" | "local"
+            | "y"
+            | "yaml"
+            | "o"
+            | "outputfile"
+            | "g"
+            | "logfile"
+            | "c"
+            | "cruft"
+            | "n"
+            | "lines"
     );
     if takes_value && val.is_none() {
         if let Some(next) = it.peek() {
@@ -199,7 +246,6 @@ fn apply(
         "GCString" => flag(&mut sw.gcstring),
         _ => {
             // 未知开关忽略（Getopt::Long 默认报错，这里宽容处理）
-            let _ = HashMap::<(), ()>::new();
         }
     }
 }

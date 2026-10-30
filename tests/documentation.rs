@@ -421,7 +421,13 @@ const DEMOS: &[Demo] = &[
 
 #[test]
 fn documentation_logs() {
-    check_log_lines(DIR, "matrix2.tex", &["-s", "-t", "-o=+-default"], "found:", "matrix2.txt");
+    check_log_lines(
+        DIR,
+        "matrix2.tex",
+        &["-s", "-t", "-o=+-default"],
+        "found:",
+        "matrix2.txt",
+    );
     check_log_lines(
         DIR,
         "matrix2.tex",
@@ -454,7 +460,13 @@ fn documentation_logs() {
     check_log_lines(
         DIR,
         "tikz-node1.tex",
-        &["-s", "-t", "-o", "tikz-node1-no-strings", "-l=no-strings.yaml"],
+        &[
+            "-s",
+            "-t",
+            "-o",
+            "tikz-node1-no-strings",
+            "-l=no-strings.yaml",
+        ],
         "found:",
         "tikz-node-mod3.txt",
     );
@@ -498,10 +510,18 @@ fn documentation_paths_log_sections() {
         let case = common::run_full_dir(
             DIR,
             "paths-demo.tex",
-            &["-s", &l, &o].iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            &["-s", &l, &o]
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
         );
         case.assert_success();
-        case.assert_log_section("indent.log", "YAML settings, reading", Some("INFO:"), expected);
+        case.assert_log_section(
+            "indent.log",
+            "YAML settings, reading",
+            Some("INFO:"),
+            expected,
+        );
     }
 }
 
@@ -581,7 +601,16 @@ fn documentation_manual_sources_pending() {
         common::check_overwrite(
             MANUAL,
             f,
-            &["-w", "-rv", "-m", "-g", "bib-files.log", "-l", "bibsettings.yaml", "-s"],
+            &[
+                "-w",
+                "-rv",
+                "-m",
+                "-g",
+                "bib-files.log",
+                "-l",
+                "bibsettings.yaml",
+                "-s",
+            ],
         );
     }
 }

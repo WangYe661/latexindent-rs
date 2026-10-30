@@ -510,39 +510,179 @@ struct CCase {
 /// 脚本尾部（第 165–224 行）尚未搬入的 26 条非循环调用；两个循环已 100% 覆盖。
 const TAIL_CASES: &[CCase] = &[
     // issue 123
-    CCase { input: "issue-123.tex", args: &["-s", "-o=+-default.tex"], expected: "issue-123-default.tex", overwrite: false },
+    CCase {
+        input: "issue-123.tex",
+        args: &["-s", "-o=+-default.tex"],
+        expected: "issue-123-default.tex",
+        overwrite: false,
+    },
     // ifnextchar
-    CCase { input: "ifnextchar.tex", args: &["-s", "-o=+-default"], expected: "ifnextchar-default.tex", overwrite: false },
-    CCase { input: "ifnextchar.tex", args: &["-s", "-o=+-mod1", "-l=com-name-special1.yaml"], expected: "ifnextchar-mod1.tex", overwrite: false },
+    CCase {
+        input: "ifnextchar.tex",
+        args: &["-s", "-o=+-default"],
+        expected: "ifnextchar-default.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "ifnextchar.tex",
+        args: &["-s", "-o=+-mod1", "-l=com-name-special1.yaml"],
+        expected: "ifnextchar-mod1.tex",
+        overwrite: false,
+    },
     // issue 379（另有日志基准 issue-379-mod1.txt，见 `tail_log_pending`）
-    CCase { input: "issue-379.tex", args: &["-s", "-o=+-default.tex"], expected: "issue-379-default.tex", overwrite: false },
-    CCase { input: "issue-379.tex", args: &["-s", "-t", "-l", "issue-379.yaml", "-o=+-mod1.tex"], expected: "issue-379-mod1.tex", overwrite: false },
-    CCase { input: "commands-keys.tex", args: &["-s", "-l", "commands-keys", "-o=+-mod1"], expected: "commands-keys-mod1.tex", overwrite: false },
-    CCase { input: "stars-from-documentation.tex", args: &["-s", "-o=+-default"], expected: "stars-from-documentation-default.tex", overwrite: false },
+    CCase {
+        input: "issue-379.tex",
+        args: &["-s", "-o=+-default.tex"],
+        expected: "issue-379-default.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "issue-379.tex",
+        args: &["-s", "-t", "-l", "issue-379.yaml", "-o=+-mod1.tex"],
+        expected: "issue-379-mod1.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "commands-keys.tex",
+        args: &["-s", "-l", "commands-keys", "-o=+-mod1"],
+        expected: "commands-keys-mod1.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "stars-from-documentation.tex",
+        args: &["-s", "-o=+-default"],
+        expected: "stars-from-documentation-default.tex",
+        overwrite: false,
+    },
     // testcls-small.cls（另有日志基准 testcls.txt，见 `tail_log_pending`）
-    CCase { input: "testcls-small.cls", args: &["-s", "-t", "-o=+-default.cls"], expected: "testcls-small-default.cls", overwrite: false },
+    CCase {
+        input: "testcls-small.cls",
+        args: &["-s", "-t", "-o=+-default.cls"],
+        expected: "testcls-small-default.cls",
+        overwrite: false,
+    },
     // ifelsefiONE.tex（另有日志基准 ifelsefiONE.txt，见 `tail_log_pending`）
-    CCase { input: "ifelsefiONE.tex", args: &["-s", "-w", "-t"], expected: "ifelsefiONE.tex", overwrite: true },
-    CCase { input: "testcls.cls", args: &["-s", "-w"], expected: "testcls.cls", overwrite: true },
-    CCase { input: "unnamed-small.tex", args: &["-s", "-o=+-mod1"], expected: "unnamed-small-mod1.tex", overwrite: false },
-    CCase { input: "bigTest.tex", args: &["-s", "-o=+-default.tex"], expected: "bigTest-default.tex", overwrite: false },
+    CCase {
+        input: "ifelsefiONE.tex",
+        args: &["-s", "-w", "-t"],
+        expected: "ifelsefiONE.tex",
+        overwrite: true,
+    },
+    CCase {
+        input: "testcls.cls",
+        args: &["-s", "-w"],
+        expected: "testcls.cls",
+        overwrite: true,
+    },
+    CCase {
+        input: "unnamed-small.tex",
+        args: &["-s", "-o=+-mod1"],
+        expected: "unnamed-small-mod1.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "bigTest.tex",
+        args: &["-s", "-o=+-default.tex"],
+        expected: "bigTest-default.tex",
+        overwrite: false,
+    },
     // github-issue-35（-no-at / -no-at3 另有日志基准，见 `tail_log_pending`）
-    CCase { input: "github-issue-35.tex", args: &["-t", "-s", "-o=+-default"], expected: "github-issue-35-default.tex", overwrite: false },
-    CCase { input: "github-issue-35.tex", args: &["-t", "-s", "-o=+-no-at", "-l", "no-at-between-args.yaml"], expected: "github-issue-35-no-at.tex", overwrite: false },
-    CCase { input: "github-issue-35.tex", args: &["-s", "-o=+-no-at1", "-l", "no-at-between-args1.yaml"], expected: "github-issue-35-no-at1.tex", overwrite: false },
-    CCase { input: "github-issue-35.tex", args: &["-s", "-o=+-no-at2", "-l", "no-at-between-args2.yaml"], expected: "github-issue-35-no-at2.tex", overwrite: false },
-    CCase { input: "github-issue-35.tex", args: &["-t", "-s", "-o=+-no-at3", "-l", "no-at-between-args3.yaml"], expected: "github-issue-35-no-at3.tex", overwrite: false },
-    CCase { input: "figureValign.tex", args: &["-w", "-s"], expected: "figureValign.tex", overwrite: true },
-    CCase { input: "pstricks1.tex", args: &["-s", "-o=+-default", "-l=../texexchange/indentPreamble"], expected: "pstricks1-default.tex", overwrite: false },
+    CCase {
+        input: "github-issue-35.tex",
+        args: &["-t", "-s", "-o=+-default"],
+        expected: "github-issue-35-default.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "github-issue-35.tex",
+        args: &["-t", "-s", "-o=+-no-at", "-l", "no-at-between-args.yaml"],
+        expected: "github-issue-35-no-at.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "github-issue-35.tex",
+        args: &["-s", "-o=+-no-at1", "-l", "no-at-between-args1.yaml"],
+        expected: "github-issue-35-no-at1.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "github-issue-35.tex",
+        args: &["-s", "-o=+-no-at2", "-l", "no-at-between-args2.yaml"],
+        expected: "github-issue-35-no-at2.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "github-issue-35.tex",
+        args: &["-t", "-s", "-o=+-no-at3", "-l", "no-at-between-args3.yaml"],
+        expected: "github-issue-35-no-at3.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "figureValign.tex",
+        args: &["-w", "-s"],
+        expected: "figureValign.tex",
+        overwrite: true,
+    },
+    CCase {
+        input: "pstricks1.tex",
+        args: &["-s", "-o=+-default", "-l=../texexchange/indentPreamble"],
+        expected: "pstricks1-default.tex",
+        overwrite: false,
+    },
     // sub-super-scripts（另有日志基准 sub-super-scripts.txt，见 `tail_log_pending`）
-    CCase { input: "sub-super-scripts.tex", args: &["-s", "-t", "-o=+-default"], expected: "sub-super-scripts-default.tex", overwrite: false },
-    CCase { input: "sub-super-scripts.tex", args: &["-s", "-o=+-mod5", "-m", "-l=../specials/special-mod5"], expected: "sub-super-scripts-mod5.tex", overwrite: false },
-    CCase { input: "sub-super-scripts.tex", args: &["-s", "-o=+-mod6", "-m", "-l=../specials/special-mod5,mand-args-mod1"], expected: "sub-super-scripts-mod6.tex", overwrite: false },
-    CCase { input: "sub-super-scripts.tex", args: &["-s", "-o=+-mod55", "-m", "-l=../mand-args/mand-args-mod5,../specials/special-mod5"], expected: "sub-super-scripts-mod55.tex", overwrite: false },
-    CCase { input: "commands-four-special-characters.tex", args: &["-o=+-mod1", "-s", "-l=fine-tuning-args1"], expected: "commands-four-special-characters-mod1.tex", overwrite: false },
-    CCase { input: "issue-605.tex", args: &["-s", "-l", "issue-605.yaml", "-o=+-mod1.tex"], expected: "issue-605-mod1.tex", overwrite: false },
+    CCase {
+        input: "sub-super-scripts.tex",
+        args: &["-s", "-t", "-o=+-default"],
+        expected: "sub-super-scripts-default.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "sub-super-scripts.tex",
+        args: &["-s", "-o=+-mod5", "-m", "-l=../specials/special-mod5"],
+        expected: "sub-super-scripts-mod5.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "sub-super-scripts.tex",
+        args: &[
+            "-s",
+            "-o=+-mod6",
+            "-m",
+            "-l=../specials/special-mod5,mand-args-mod1",
+        ],
+        expected: "sub-super-scripts-mod6.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "sub-super-scripts.tex",
+        args: &[
+            "-s",
+            "-o=+-mod55",
+            "-m",
+            "-l=../mand-args/mand-args-mod5,../specials/special-mod5",
+        ],
+        expected: "sub-super-scripts-mod55.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "commands-four-special-characters.tex",
+        args: &["-o=+-mod1", "-s", "-l=fine-tuning-args1"],
+        expected: "commands-four-special-characters-mod1.tex",
+        overwrite: false,
+    },
+    CCase {
+        input: "issue-605.tex",
+        args: &["-s", "-l", "issue-605.yaml", "-o=+-mod1.tex"],
+        expected: "issue-605-mod1.tex",
+        overwrite: false,
+    },
     // issue-620（另有日志基准 issue-620.txt，见 `tail_log_pending`）
-    CCase { input: "issue-620.tex", args: &["-s", "-t", "-o=+-mod1"], expected: "issue-620-mod1.tex", overwrite: false },
+    CCase {
+        input: "issue-620.tex",
+        args: &["-s", "-t", "-o=+-mod1"],
+        expected: "issue-620-mod1.tex",
+        overwrite: false,
+    },
 ];
 
 /// 与基准不一致、暂挂起的产物名（只搬运未修码）。从 `TAIL_CASES` 中过滤出来单独 ignore。

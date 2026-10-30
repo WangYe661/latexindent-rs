@@ -108,8 +108,16 @@ fn backup_files_contents_and_rotation() {
         !exists("myfile.txt2"),
         "backup1：maxNumberOfBackUps=2 时不应出现 myfile.txt2"
     );
-    assert_eq!(read("myfile.txt0"), myfile, "备份内容应与原文件一致（txt0）");
-    assert_eq!(read("myfile.txt1"), myfile, "备份内容应与原文件一致（txt1）");
+    assert_eq!(
+        read("myfile.txt0"),
+        myfile,
+        "备份内容应与原文件一致（txt0）"
+    );
+    assert_eq!(
+        read("myfile.txt1"),
+        myfile,
+        "备份内容应与原文件一致（txt1）"
+    );
 
     // L10：cycleThroughBackUps → myfile.txtn0 / myfile.txtn1
     for _ in 0..3 {
@@ -122,8 +130,16 @@ fn backup_files_contents_and_rotation() {
         !exists("myfile.txtn2"),
         "backup2：maxNumberOfBackUps=2 时不应出现 myfile.txtn2"
     );
-    assert_eq!(read("myfile.txtn0"), myfile, "备份内容应与原文件一致（txtn0）");
-    assert_eq!(read("myfile.txtn1"), myfile, "备份内容应与原文件一致（txtn1）");
+    assert_eq!(
+        read("myfile.txtn0"),
+        myfile,
+        "备份内容应与原文件一致（txtn0）"
+    );
+    assert_eq!(
+        read("myfile.txtn1"),
+        myfile,
+        "备份内容应与原文件一致（txtn1）"
+    );
 
     // L19：onlyOneBackUp:1 → 新建.bak 原地覆盖，内容等于原文件
     let cjk = std::fs::read(s.work.join("新建.tex")).unwrap();

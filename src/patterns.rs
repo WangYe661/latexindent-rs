@@ -9,7 +9,6 @@
 use pcre2::bytes::{Captures, Match, Regex, RegexBuilder};
 use serde_yaml::Value;
 
-use crate::logger;
 use crate::settings::{as_bool, as_str, get, get_path};
 use crate::tokens::tok;
 
@@ -103,19 +102,14 @@ pub struct PatternSet {
     pub all_code_blocks_fast: Regex,
     pub code_block_look_for: Regex,
     pub one_arg: Regex,
-    /// `one_arg` 的所有格变体，用途同 `all_code_blocks_fast`。
-    pub one_arg_fast: Regex,
     pub one_arg_names: std::collections::HashMap<String, usize>,
     pub trailing_comment: String,
     pub item_regexp: String,
-    pub special_end: Vec<(String, String)>, // (begin, end) 参与 specialBody 截止判断
     pub re_arg_only_comment: Regex,
     pub re_arg_only_space: Regex,
     pub re_body_linebreak: Regex,
     pub re_key_split: Regex,
-    pub re_item_no_space: Regex,
     pub re_item: Regex,
-    pub re_middle: Option<(String, Regex)>, // specialLookUpMiddle 逐名构建，另行处理
     pub defs: String,
     /// Perl $specialAllRegEx：完整 special 块（SPECIAL | SPECIALNESTED），
     /// 供 _find_special_middle 的 SPECIALALL 分支整块吞掉已渲染的嵌套 special。
@@ -373,7 +367,8 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
     );
 
     // dENV：environmentRegEx 的定义块版本
-    let d_env_body = if let (Some(b), Some(e)) = (env_begin_custom.clone(), env_end_custom.clone()) {
+    let d_env_body = if let (Some(b), Some(e)) = (env_begin_custom.clone(), env_end_custom.clone())
+    {
         format!(
             r"(?<dENV>(?xs:(?:{begin})(?:(?&dARG))*{trail}(?<dEBODY>(?:(?&dENV)|(?!{end}).)*)(?:{end}){mtrail}))",
             begin = b,
@@ -561,7 +556,8 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
     };
 
     // 环境（顶层可读版）
-    let env_pattern = if let (Some(b), Some(e)) = (env_begin_custom.clone(), env_end_custom.clone()) {
+    let env_pattern = if let (Some(b), Some(e)) = (env_begin_custom.clone(), env_end_custom.clone())
+    {
         format!(
             r"(?xs:(?<ENVBEGIN>{begin})(?<ENVARGS>(?:(?&dARG))*{mtrail_nc})(?<ENVBODY>(?:(?&dENV)|(?!{end}).)*)(?<ENVEND>{end}){trail})",
             begin = b,
@@ -653,8 +649,16 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
         .iter()
         .map(|b| {
             (
-                format!(r"(?:(?:{head})|(?:{b})|(?&dCODE))*", head = arg_body_head, b = b),
-                format!(r"(?:(?:{head})|(?&dCODE)|(?:{b}))*+", head = arg_body_head, b = b),
+                format!(
+                    r"(?:(?:{head})|(?:{b})|(?&dCODE))*",
+                    head = arg_body_head,
+                    b = b
+                ),
+                format!(
+                    r"(?:(?:{head})|(?&dCODE)|(?:{b}))*+",
+                    head = arg_body_head,
+                    b = b
+                ),
             )
         })
         .collect();
@@ -672,22 +676,16 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
         look.push('|');
         look.push_str(&spn_begin_re);
     }
-    let code_block_look_for = crate::patterns::re_new(&format!("(?s:{look})")).expect("codeBlockLookFor");
+    let code_block_look_for =
+        crate::patterns::re_new(&format!("(?s:{look})")).expect("codeBlockLookFor");
 
     // _indent_all_args 用：\G 逐个参数（捕获可读）
     let one_arg_src = format!(r"{defs}(?x)\G(?:{}){}", all_arg(""), m_trail(""));
     let one_arg = crate::patterns::re_new(&one_arg_src).expect("one_arg");
-    let one_arg_fast =
-        crate::patterns::re_new(&fast_variant(&one_arg_src, &loop_pairs)).expect("one_arg_fast");
-
-    let special_end = sp_end
-        .into_iter()
-        .chain(spn_end.into_iter())
-        .map(|e| (String::new(), e))
-        .collect();
 
     let re_arg_only_comment =
-        crate::patterns::re_new(&format!(r"(?s)^\s*{}\s*$", trailing_comment_x)).expect("re_arg_only_comment");
+        crate::patterns::re_new(&format!(r"(?s)^\s*{}\s*$", trailing_comment_x))
+            .expect("re_arg_only_comment");
     let re_arg_only_space = crate::patterns::re_new(r"(?s)^\s*$").expect("re_arg_only_space");
     let re_body_linebreak = crate::patterns::re_new(r"^\h*\R").expect("re_body_linebreak");
     let re_key_split = crate::patterns::re_new(&format!(
@@ -698,11 +696,6 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
 
     // items 正则（_find_env_items 用）：body 遇到下一个 item 截止，内部可嵌套环境
     let defs = defs_pre(&d_arg, &d_env_body, &d_if, &d_spn, &d_code);
-    let re_item_no_space = crate::patterns::re_new(&format!(
-        r"(?s){defs}(?:(?<ITEMBEGIN>{item})(?<ITEMBODY>(?:(?&dENV)|(?!(?:{item})).)*))",
-        item = item_regexp
-    ))
-    .expect("re_item_no_space");
     let re_item = crate::patterns::re_new(&format!(
         r"(?s){defs}(?<WS>\s*)(?:(?<ITEMBEGIN>{item})(?<ITEMBODY>(?:(?&dENV)|(?!(?:{item})).)*))",
         item = item_regexp
@@ -721,18 +714,14 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
         all_code_blocks_fast,
         code_block_look_for,
         one_arg,
-        one_arg_fast,
         one_arg_names,
         trailing_comment,
         item_regexp,
-        special_end,
         re_arg_only_comment,
         re_arg_only_space,
         re_body_linebreak,
         re_key_split,
-        re_item_no_space,
         re_item,
-        re_middle: None,
         defs,
         special_all: alt_specials.trim_start_matches('|').to_string(),
         special_present,

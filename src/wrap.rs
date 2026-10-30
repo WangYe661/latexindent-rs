@@ -2,6 +2,7 @@
 
 use pcre2::bytes::Regex;
 
+use crate::num::{clamp_usize, to_i64};
 use crate::patterns::{gn, replace_all_with};
 use crate::settings::{as_bool, as_i64, as_str};
 use crate::state;
@@ -55,13 +56,12 @@ pub fn wrap_text(text: &str, columns: usize) -> String {
     let unit = r"(?>(?!\n)\PM\pM*|(?<![^\n])\pM+)";
 
     // `textWrapOptions.tabstop`（Perl 仅在其有值时覆写 Text::Wrap 的默认 8）
-    let tabstop = tw(|m| as_i64(get_opt(m, "tabstop")).unwrap_or(8)).max(1) as usize;
+    let tabstop = clamp_usize(tw(|m| as_i64(get_opt(m, "tabstop")).unwrap_or(8)).max(1));
     // `textWrapOptions.unexpand`：输出时把成串空格折回制表符（Text::Tabs::unexpand）
     let unexpand = tw(|m| as_bool(get_opt(m, "unexpand")));
     let t = expand_tabs(text, tabstop);
     let subj = t.as_bytes();
-    let nll = columns - 1;
-    let mut ll = nll;
+    let ll = columns - 1;
 
     let re_stop = re(&format!(r"\G(?:{brk})*\z"));
     let re_a = re(&format!(r"\G({unit}{{0,{ll}}})({brk}|\n+|\z)"));
@@ -76,19 +76,31 @@ pub fn wrap_text(text: &str, columns: usize) -> String {
     let mut remainder = String::new();
     let mut pos = 0usize;
     while !re_stop.is_match_at(subj, pos).unwrap_or(false) {
-        if re_a.captures_read_at(&mut la, subj, pos).unwrap_or(None).is_some() {
+        if re_a
+            .captures_read_at(&mut la, subj, pos)
+            .unwrap_or(None)
+            .is_some()
+        {
             let (s1, e1) = la.get(1).unwrap_or((pos, pos));
             let (s2, e2) = la.get(2).unwrap_or((e1, e1));
             push_piece(&mut out, &nl, &t[s1..e1], unexpand, tabstop);
             remainder = t[s2..e2].to_string();
             pos = e2;
-        } else if huge == "wrap" && re_b.captures_read_at(&mut lb, subj, pos).unwrap_or(None).is_some() {
+        } else if huge == "wrap"
+            && re_b
+                .captures_read_at(&mut lb, subj, pos)
+                .unwrap_or(None)
+                .is_some()
+        {
             let (s1, e1) = lb.get(1).unwrap_or((pos, pos));
             push_piece(&mut out, &nl, &t[s1..e1], unexpand, tabstop);
             remainder = sep.clone();
             pos = e1;
         } else if huge == "overflow"
-            && re_c.captures_read_at(&mut lc, subj, pos).unwrap_or(None).is_some()
+            && re_c
+                .captures_read_at(&mut lc, subj, pos)
+                .unwrap_or(None)
+                .is_some()
         {
             let (s1, e1) = lc.get(1).unwrap_or((pos, pos));
             let (s2, e2) = lc.get(2).unwrap_or((e1, e1));
@@ -105,7 +117,6 @@ pub fn wrap_text(text: &str, columns: usize) -> String {
         } else {
             break;
         }
-        ll = nll;
         nl = sep.clone();
     }
     out.push_str(&remainder);
@@ -233,7 +244,8 @@ fn fresh_placeholder(len: usize, avoid: &str, salt: usize) -> String {
             seed ^= seed << 13;
             seed ^= seed >> 7;
             seed ^= seed << 17;
-            s.push(ALPHABET[(seed % ALPHABET.len() as u64) as usize] as char);
+            let idx = usize::try_from(seed % ALPHABET.len() as u64).unwrap_or(0);
+            s.push(ALPHABET[idx] as char);
         }
         if !avoid.contains(&s) {
             return s;
@@ -259,7 +271,7 @@ pub fn text_wrap_sentence(value: &str, follows: &str) -> String {
     // 默认 `when: before` 时 `subsequentSpace` 为空，列宽就是 columns 本身；
     // 无条件扣减会让 before 模式的句子提前折行（opl_after_loop 之外的用例全崩）。
     let wrapped = if !tw(|m| as_str(get_opt(m, "when")).unwrap_or("before") == "after") {
-        wrap_text(&text, columns.max(0) as usize)
+        wrap_text(&text, clamp_usize(columns.max(0)))
     } else {
         let last = follows.split(['\n', '\r']).next_back().unwrap_or("");
         let n_tabs = last.matches('\t').count();
@@ -267,8 +279,8 @@ pub fn text_wrap_sentence(value: &str, follows: &str) -> String {
         for _ in 0..n_tabs {
             space = space.replacen(' ', "    ", 1);
         }
-        let sub = space.chars().count() as i64;
-        wrap_text(&text, (columns - sub).max(0) as usize)
+        let sub = to_i64(space.chars().count());
+        wrap_text(&text, clamp_usize((columns - sub).max(0)))
     };
     if trailing_comments.is_empty() {
         return wrapped;
@@ -319,7 +331,13 @@ pub fn text_wrap(body: &str) -> String {
     if columns_i == 0 {
         return body.to_string();
     }
-    let columns = columns_i as usize;
+    // 只有 columns > 0 才真正折行；负值（如 -1）只合并行不折行（见下方 `columns_i > 0`）。
+    // 这里绝不能把负值钳成 0 再提前返回，否则负值会退化成"原样不处理"。
+    let columns = if columns_i > 0 {
+        clamp_usize(columns_i)
+    } else {
+        0
+    };
     let when_after = tw(|m| as_str(get_opt(m, "when")).unwrap_or("before") == "after");
     let multi = tw(|m| as_bool(get_opt(m, "multipleSpacesToSingle")));
     let remove_block_lb = tw(|m| as_bool(get_opt(m, "removeBlockLineBreaks")));
@@ -381,9 +399,8 @@ pub fn text_wrap(body: &str) -> String {
                 (plain, starred)
             });
             for h in starred.into_iter().chain(plain.into_iter()) {
-                let one = format!(
-                    r"\\{h}\h*(?:\[[^]]*?\])?\h*\{{[^}}]*?\}}\h*(?:\\label\{{[^}}]*?\}})?"
-                );
+                let one =
+                    format!(r"\\{h}\h*(?:\[[^]]*?\])?\h*\{{[^}}]*?\}}\h*(?:\\label\{{[^}}]*?\}})?");
                 // Perl 的 `$headingsRegEx` 累积的是同一个 pattern（供 when:after 从
                 // 前一个分隔符里剥掉标题行）
                 headings_re.push_str(&one);
@@ -429,11 +446,7 @@ pub fn text_wrap(body: &str) -> String {
         })
         .collect();
     let blocks_follow = if follow_comment_tail {
-        format!(
-            r"(?s:(?:{})(?:\h|\R)*(?:{}\R\h*)?)",
-            branches.join("|"),
-            tc
-        )
+        format!(r"(?s:(?:{})(?:\h|\R)*(?:{}\R\h*)?)", branches.join("|"), tc)
     } else {
         format!(r"(?s:(?:{})(?:\h|\R)*)", branches.join("|"))
     };
@@ -534,7 +547,7 @@ pub fn text_wrap(body: &str) -> String {
         let mut first_line_columns = 0usize;
         if when_after {
             let prev = if wrap_count >= 1 {
-                raw[(wrap_count - 1) as usize].as_str()
+                raw[usize::try_from(wrap_count - 1).unwrap_or(0)].as_str()
             } else {
                 ""
             };
@@ -668,7 +681,10 @@ pub fn text_wrap(body: &str) -> String {
         // Perl Wrap.pm L591-627。
         if comments_wrap && !trailing_comments.is_empty() {
             let mut comment_value = String::new();
-            let id_re = re(&format!(r"([0-9]+){}", crate::patterns::esc_lit(&t.end_of_token)));
+            let id_re = re(&format!(
+                r"([0-9]+){}",
+                crate::patterns::esc_lit(&t.end_of_token)
+            ));
             for c in id_re.captures_iter(trailing_comments.as_bytes()).flatten() {
                 let n: usize = gn(&c, 1).parse().unwrap_or(0);
                 if n == 0 {
@@ -693,7 +709,7 @@ pub fn text_wrap(body: &str) -> String {
             };
             // 列宽扣掉块尾最后一行的宽度（Perl 用 get_column_width）
             let last_w = width(text.split('\n').next_back().unwrap_or(""));
-            let ccols = (columns_i - last_w as i64).max(0) as usize;
+            let ccols = clamp_usize(columns_i - to_i64(last_w));
             let wrapped = wrap_text(&comment_value, ccols);
             let mut it = wrapped.split('\n');
             let first = it.next().unwrap_or("").to_string();
@@ -815,7 +831,10 @@ pub fn text_wrap_comment_blocks(body: &str) -> String {
     // Perl 是按 token 里的数字 id 回到 `@trailingComments` 取 `value` 拼成一整段，
     // 折行后再把每一行**重新登记成新 token**。旧实现直接拿 token 文本当内容，
     // 结果写出 `% tc1-END`（issue-562-mod1）。
-    let id_re = re(&format!(r"([0-9]+){}", crate::patterns::esc_lit(&t.end_of_token)));
+    let id_re = re(&format!(
+        r"([0-9]+){}",
+        crate::patterns::esc_lit(&t.end_of_token)
+    ));
     let block_re = re(&format!(r"(?m)((?:^\h*{tc}\R)+)"));
     body = replace_all_with(&body, &block_re, |caps| {
         let block = gn(caps, 1);
@@ -843,7 +862,9 @@ pub fn text_wrap_comment_blocks(body: &str) -> String {
             value.push_str(&v);
         }
         // 去掉最前面一个空白，再取其余前导空白
-        let value = value.strip_prefix(|c: char| c == ' ' || c == '\t').unwrap_or(&value);
+        let value = value
+            .strip_prefix(|c: char| c == ' ' || c == '\t')
+            .unwrap_or(&value);
         let (lead_ws, rest) = split_leading_hs(value);
         let leading_space = if inherit {
             lead_ws.to_string()
@@ -856,15 +877,17 @@ pub fn text_wrap_comment_blocks(body: &str) -> String {
             value = replace_all_with(&value, &r, |_| " ".to_string());
         }
         // 列宽要扣掉行首缩进与 `%` 后那个空格（Perl 用 length，不是字素宽）
-        let wrap_cols = columns - leading_hs.chars().count() as i64 - leading_space.chars().count() as i64;
-        let wrapped = wrap_text(&value, wrap_cols.max(0) as usize);
+        let wrap_cols =
+            columns - to_i64(leading_hs.chars().count()) - to_i64(leading_space.chars().count());
+        let wrapped = wrap_text(&value, clamp_usize(wrap_cols.max(0)));
         // 还原制表符（Perl 只把前 $numberOfTABS 组 4 空格换回 tab）
         for _ in 0..n_tabs {
             leading_hs = leading_hs.replacen("    ", "\t", 1);
         }
         let mut out = String::new();
         for line in wrapped.split('\n') {
-            let id = crate::trailing_comments::add_comment_symbol(&format!("{leading_space}{line}"));
+            let id =
+                crate::trailing_comments::add_comment_symbol(&format!("{leading_space}{line}"));
             out.push_str(&leading_hs);
             out.push('%');
             out.push_str(&id);
@@ -876,9 +899,7 @@ pub fn text_wrap_comment_blocks(body: &str) -> String {
 }
 
 fn split_leading_hs(s: &str) -> (&str, &str) {
-    let n = s
-        .find(|c: char| c != ' ' && c != '\t')
-        .unwrap_or(s.len());
+    let n = s.find(|c: char| c != ' ' && c != '\t').unwrap_or(s.len());
     s.split_at(n)
 }
 

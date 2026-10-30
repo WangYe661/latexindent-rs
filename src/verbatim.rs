@@ -1,7 +1,8 @@
 //! verbatim / noindentblock 保护与还原（对应 LatexIndent/Verbatim.pm）。
 
 use crate::logger;
-use crate::settings::{as_bool, as_str, get, get_path};
+use crate::patterns::esc_lit;
+use crate::settings::{as_bool, as_str, get};
 use crate::state::{self, VerbatimObj};
 use crate::switches;
 use crate::tokens::tok;
@@ -235,6 +236,13 @@ pub fn find_verbatim_commands(body: &str) -> String {
             Ok(re) => re,
             Err(_) => continue,
         };
+        // 嵌套 \verb 的检测模式只依赖 token（恒定），编译一次即可
+        let nested_re = crate::patterns::re_new(&format!(
+            r"(?s){}\d+{}",
+            esc_lit(&t.verbatim_inline),
+            esc_lit(&t.end_of_token)
+        ))
+        .expect("nested verbatim token regex");
         body = crate::patterns::replace_all_with(&body, &re, |caps| {
             let opt_arg = crate::patterns::gs(caps, "OA").unwrap_or("").to_string();
             let delim = crate::patterns::gs(caps, "D").unwrap_or("").to_string();
@@ -243,12 +251,6 @@ pub fn find_verbatim_commands(body: &str) -> String {
             let lb = crate::patterns::gs(caps, "LB").unwrap_or("").to_string();
             let name = crate::patterns::gs(caps, "N").unwrap_or("").to_string();
             // 嵌套 \verb：还原内层并回收
-            let nested_re = crate::patterns::re_new(&format!(
-                r"(?s){}\d+{}",
-                regex_esc(&t.verbatim_inline),
-                regex_esc(&t.end_of_token)
-            ))
-            .unwrap();
             if nested_re.is_match(b.as_bytes()).unwrap_or(false) {
                 let ids: Vec<String> = state::storage(|s| s.verbatim.keys().cloned().collect());
                 for id in ids {
@@ -277,7 +279,6 @@ pub fn find_verbatim_commands(body: &str) -> String {
                 name,
                 typ: "command".into(),
                 yaml_name: "verbatim".into(),
-                opt_arg,
                 horizontal_trailing_space: hs,
                 linebreaks_at_end: lb,
                 ..Default::default()
@@ -465,13 +466,12 @@ pub fn put_verbatim_back_in(body: &str, kind: &str) -> String {
                     if crate::switches::with(|s| s.is_m_switch_active())
                         && obj.end_finishes_with_line_break == -1
                     {
-                        let probe =
-                            crate::patterns::re_new(&format!(r"(?s){}\h*\R", regex_esc(&id)))
-                                .unwrap();
+                        let probe = crate::patterns::re_new(&format!(r"(?s){}\h*\R", esc_lit(&id)))
+                            .unwrap();
                         if probe.is_match(body.as_bytes()).unwrap_or(false) {
                             let re = crate::patterns::re_new(&format!(
                                 r"(?s){}(\h*)?(\R|\h)*",
-                                regex_esc(&id)
+                                esc_lit(&id)
                             ))
                             .unwrap();
                             let fixed = format!("{id} ");
@@ -479,11 +479,11 @@ pub fn put_verbatim_back_in(body: &str, kind: &str) -> String {
                         }
                     }
                     if obj.typ == "linesprotect" {
-                        let re = crate::patterns::re_new(&format!(r"(?m)^\h*{}", regex_esc(&id)))
-                            .unwrap();
+                        let re =
+                            crate::patterns::re_new(&format!(r"(?m)^\h*{}", esc_lit(&id))).unwrap();
                         body = crate::patterns::replace_all_with(&body, &re, |_| id.clone());
                         let re =
-                            crate::patterns::re_new(&format!(r"(?m)({})\h*(\S)", regex_esc(&id)))
+                            crate::patterns::re_new(&format!(r"(?m)({})\h*(\S)", esc_lit(&id)))
                                 .unwrap();
                         body = crate::patterns::replace_all_with(&body, &re, |caps| {
                             format!(
@@ -513,17 +513,6 @@ pub fn put_verbatim_back_in(body: &str, kind: &str) -> String {
     body
 }
 
-fn regex_esc(s: &str) -> String {
-    let mut out = String::new();
-    for ch in s.chars() {
-        if r"\.^$|?*+()[]{}".contains(ch) {
-            out.push('\\');
-        }
-        out.push(ch);
-    }
-    out
-}
-
 /// _mlb_verbatim：verbatim 块的 -m 换行调整（BeginStartsOnOwnLine/EndFinishesWithLineBreak）。
 pub fn mlb_verbatim(body: &str, when: &str) -> String {
     let is_m = switches::with(|s| s.is_m_switch_active());
@@ -549,15 +538,14 @@ pub fn mlb_verbatim(body: &str, when: &str) -> String {
                 // `*4` 展开为 (-1, 3) 时，-1 分支先删掉前导换行，
                 // 随后 3 分支必须看到「已不在行首」才会补空行+换行。
                 // 若只算一次（旧实现），3 分支会误判仍在行首而整段跳过。
-                let at_line_start = crate::patterns::re_new(&format!(r"(?m)^\h*{}", regex_esc(&id)))
+                let at_line_start = crate::patterns::re_new(&format!(r"(?m)^\h*{}", esc_lit(&id)))
                     .unwrap()
                     .is_match(body.as_bytes())
                     .unwrap_or(false);
                 if v == -1 {
                     if at_line_start {
-                        let re =
-                            crate::patterns::re_new(&format!(r"(?s)(\R|\h)*{}", regex_esc(&id)))
-                                .unwrap();
+                        let re = crate::patterns::re_new(&format!(r"(?s)(\R|\h)*{}", esc_lit(&id)))
+                            .unwrap();
                         body = crate::patterns::replace_all_with(&body, &re, |_| id.clone());
                     }
                 } else if v >= 1 && !at_line_start {
@@ -566,8 +554,7 @@ pub fn mlb_verbatim(body: &str, when: &str) -> String {
                         3 => "\n".to_string(),
                         _ => String::new(),
                     };
-                    let re =
-                        crate::patterns::re_new(&format!(r"(?s)\h*{}", regex_esc(&id))).unwrap();
+                    let re = crate::patterns::re_new(&format!(r"(?s)\h*{}", esc_lit(&id))).unwrap();
                     body =
                         crate::patterns::replace_all_with(&body, &re, |_| format!("{token}\n{id}"));
                 }
@@ -584,7 +571,7 @@ pub fn mlb_verbatim(body: &str, when: &str) -> String {
             if let Some(ef) = poly("EndFinishesWithLineBreak") {
                 if ef >= 1 {
                     let tail_re =
-                        crate::patterns::re_new(&format!(r"(?m){}\h*\S+", regex_esc(&id))).unwrap();
+                        crate::patterns::re_new(&format!(r"(?m){}\h*\S+", esc_lit(&id))).unwrap();
                     if tail_re.is_match(body.as_bytes()).unwrap_or(false) {
                         let mut tc_token = String::new();
                         let mut lb_char = String::new();
@@ -592,12 +579,9 @@ pub fn mlb_verbatim(body: &str, when: &str) -> String {
                             lb_char = "\n".to_string();
                         } else if ef == 2 {
                             let tc = state::patterns(|p| p.trailing_comment.clone());
-                            let re_tc = crate::patterns::re_new(&format!(
-                                r"(?s){}\h*{}",
-                                regex_esc(&id),
-                                tc
-                            ))
-                            .unwrap();
+                            let re_tc =
+                                crate::patterns::re_new(&format!(r"(?s){}\h*{}", esc_lit(&id), tc))
+                                    .unwrap();
                             if !re_tc.is_match(body.as_bytes()).unwrap_or(false) {
                                 tc_token = format!(
                                     "%{}\n",
@@ -620,11 +604,8 @@ pub fn mlb_verbatim(body: &str, when: &str) -> String {
                                 }
                             }
                         });
-                        let re = crate::patterns::re_new(&format!(
-                            r"(?s){}(\h*)",
-                            regex_esc(&id)
-                        ))
-                        .unwrap();
+                        let re = crate::patterns::re_new(&format!(r"(?s){}(\h*)", esc_lit(&id)))
+                            .unwrap();
                         body = crate::patterns::replace_all_with(&body, &re, |c| {
                             format!("{}{}{}{}", id, crate::patterns::gn(c, 1), tc_token, lb_char)
                         });

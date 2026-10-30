@@ -355,4 +355,3 @@ fn named_grouping_logs() {
         "issue-653a.txt",
     );
 }
-

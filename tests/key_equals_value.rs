@@ -7,7 +7,7 @@
 //! 本文件结构：前 4 个函数为原有搬运（14 条断言）；其后为本次 T1 补齐的 585 条缺口，
 //! 每条缺口都有一条断言——与基准一致的正常执行，不一致的进 `key_equals_pending`（`#[ignore]`）。
 mod common;
-use common::{check, check_owned, check_overwrite, report};
+use common::{check, check_overwrite, check_owned, report};
 
 const DIR: &str = "keyEqualsValueBraces";
 
@@ -32,32 +32,120 @@ fn owned(args: &[&str]) -> Vec<String> {
 
 #[test]
 fn key_equals_default() {
-    check("keyEqualsValueBraces", "keyEqualsValueFirst.tex", &["-s", "-o=+-default"], "keyEqualsValueFirst-default.tex");
-    check("keyEqualsValueBraces", "braceTestsmall.tex", &["-s", "-o=+-default"], "braceTestsmall-default.tex");
-    check("keyEqualsValueBraces", "braceTest.tex", &["-s", "-o=+-default"], "braceTest-default.tex");
+    check(
+        "keyEqualsValueBraces",
+        "keyEqualsValueFirst.tex",
+        &["-s", "-o=+-default"],
+        "keyEqualsValueFirst-default.tex",
+    );
+    check(
+        "keyEqualsValueBraces",
+        "braceTestsmall.tex",
+        &["-s", "-o=+-default"],
+        "braceTestsmall-default.tex",
+    );
+    check(
+        "keyEqualsValueBraces",
+        "braceTest.tex",
+        &["-s", "-o=+-default"],
+        "braceTest-default.tex",
+    );
 }
 
 #[test]
 fn key_no_additional_indent() {
-    check("keyEqualsValueBraces", "keyEqualsValueFirst.tex", &["-s", "-l=noAdditionalKey", "-o=+-noAdditional-key-global"], "keyEqualsValueFirst-noAdditional-key-global.tex");
-    check("keyEqualsValueBraces", "braceTest.tex", &["-s", "-l=noAdditionalIndent-pdfstartview", "-o=+-noAdditional-pdfstartview"], "braceTest-noAdditional-pdfstartview.tex");
-    check("keyEqualsValueBraces", "braceTest.tex", &["-s", "-l=noAdditionalIndent-pdfstartview,noAdditionalKey", "-o=+-noAdditional-pdfstartview-and-global"], "braceTest-noAdditional-pdfstartview-and-global.tex");
+    check(
+        "keyEqualsValueBraces",
+        "keyEqualsValueFirst.tex",
+        &["-s", "-l=noAdditionalKey", "-o=+-noAdditional-key-global"],
+        "keyEqualsValueFirst-noAdditional-key-global.tex",
+    );
+    check(
+        "keyEqualsValueBraces",
+        "braceTest.tex",
+        &[
+            "-s",
+            "-l=noAdditionalIndent-pdfstartview",
+            "-o=+-noAdditional-pdfstartview",
+        ],
+        "braceTest-noAdditional-pdfstartview.tex",
+    );
+    check(
+        "keyEqualsValueBraces",
+        "braceTest.tex",
+        &[
+            "-s",
+            "-l=noAdditionalIndent-pdfstartview,noAdditionalKey",
+            "-o=+-noAdditional-pdfstartview-and-global",
+        ],
+        "braceTest-noAdditional-pdfstartview-and-global.tex",
+    );
 }
 
 #[test]
 fn pgfkeys() {
     check_overwrite("keyEqualsValueBraces", "pgfkeys-first.tex", &["-s"]);
     check_overwrite("keyEqualsValueBraces", "pgfkeys-nested.tex", &["-s"]);
-    check("keyEqualsValueBraces", "pgfkeys-multiple-nested.tex", &["-s", "-m", "-l=../commands/mand-args-mod1", "-o=+-mod1"], "pgfkeys-multiple-nested-mod1.tex");
-    check("keyEqualsValueBraces", "pgfkeys-multiple-nested.tex", &["-s", "-m", "-l=../commands/mand-args-mod1,noAdditionalIndentGlobal", "-o=+-global-mod1"], "pgfkeys-multiple-nested-global-mod1.tex");
+    check(
+        "keyEqualsValueBraces",
+        "pgfkeys-multiple-nested.tex",
+        &["-s", "-m", "-l=../commands/mand-args-mod1", "-o=+-mod1"],
+        "pgfkeys-multiple-nested-mod1.tex",
+    );
+    check(
+        "keyEqualsValueBraces",
+        "pgfkeys-multiple-nested.tex",
+        &[
+            "-s",
+            "-m",
+            "-l=../commands/mand-args-mod1,noAdditionalIndentGlobal",
+            "-o=+-global-mod1",
+        ],
+        "pgfkeys-multiple-nested-global-mod1.tex",
+    );
 }
 
 #[test]
 fn pgfkeys_equals_linebreaks() {
-    check("keyEqualsValueBraces", "pgfkeys-multiple-keys.tex", &["-s", "-l=equals-not-finishes-with-line-break,keyStartsOnOwnLine", "-m", "-o=+-remove"], "pgfkeys-multiple-keys-remove.tex");
-    check("keyEqualsValueBraces", "pgfkeys-multiple-keys-single-line.tex", &["-s", "-l=equals-not-finishes-with-line-break,keyStartsOnOwnLineYes", "-m", "-o=+-to-multiple"], "pgfkeys-multiple-keys-single-line-to-multiple.tex");
-    check("keyEqualsValueBraces", "pgfkeys-add-equals.tex", &["-s", "-m", "-l=equals-not-finishes-with-line-break,EqualsStartsOnOwnLine", "-o=+-mod1"], "pgfkeys-add-equals-mod1.tex");
-    check("keyEqualsValueBraces", "pgfkeys-add-equals.tex", &["-s", "-m", "-l=EqualsStartsOnOwnLine2", "-o=+-mod2"], "pgfkeys-add-equals-mod2.tex");
+    check(
+        "keyEqualsValueBraces",
+        "pgfkeys-multiple-keys.tex",
+        &[
+            "-s",
+            "-l=equals-not-finishes-with-line-break,keyStartsOnOwnLine",
+            "-m",
+            "-o=+-remove",
+        ],
+        "pgfkeys-multiple-keys-remove.tex",
+    );
+    check(
+        "keyEqualsValueBraces",
+        "pgfkeys-multiple-keys-single-line.tex",
+        &[
+            "-s",
+            "-l=equals-not-finishes-with-line-break,keyStartsOnOwnLineYes",
+            "-m",
+            "-o=+-to-multiple",
+        ],
+        "pgfkeys-multiple-keys-single-line-to-multiple.tex",
+    );
+    check(
+        "keyEqualsValueBraces",
+        "pgfkeys-add-equals.tex",
+        &[
+            "-s",
+            "-m",
+            "-l=equals-not-finishes-with-line-break,EqualsStartsOnOwnLine",
+            "-o=+-mod1",
+        ],
+        "pgfkeys-add-equals-mod1.tex",
+    );
+    check(
+        "keyEqualsValueBraces",
+        "pgfkeys-add-equals.tex",
+        &["-s", "-m", "-l=EqualsStartsOnOwnLine2", "-o=+-mod2"],
+        "pgfkeys-add-equals-mod2.tex",
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -132,7 +220,12 @@ fn gaps_pgfkeys_nested_loops(only_pending: bool) {
             if is_pending(expected) != only_pending {
                 continue;
             }
-            check_owned(DIR, "pgfkeys-nested.tex", &owned(&["-s", "-m", yaml, out]), expected);
+            check_owned(
+                DIR,
+                "pgfkeys-nested.tex",
+                &owned(&["-s", "-m", yaml, out]),
+                expected,
+            );
         }
     }
 }
@@ -197,7 +290,12 @@ fn gaps_contributors_bib(only_pending: bool) {
         }
         let yaml = format!("-l=equals-not-finishes-with-line-break,online,mand-args-keywords{i}");
         let out = format!("-o=+-mod{i}.bib");
-        check_owned(DIR, "contributors.bib", &owned(&["-s", "-m", &yaml, &out]), &expected);
+        check_owned(
+            DIR,
+            "contributors.bib",
+            &owned(&["-s", "-m", &yaml, &out]),
+            &expected,
+        );
     }
 }
 
@@ -212,7 +310,9 @@ fn gaps_remove_line_breaks_loops(only_pending: bool) {
     for i in 1..=48 {
         let expected = format!("pgfkeys-remove-line-breaks-first-tc-mod{i}.tex");
         if is_pending(&expected) == only_pending {
-            let yaml = format!("-l=equals-not-finishes-with-line-break,unprotect-blank-lines,mand-args-mod{i}");
+            let yaml = format!(
+                "-l=equals-not-finishes-with-line-break,unprotect-blank-lines,mand-args-mod{i}"
+            );
             let out = format!("-o=+-mod{i}");
             check_owned(
                 DIR,

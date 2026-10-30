@@ -16,7 +16,6 @@ pub struct VerbatimObj {
     pub yaml_name: String,
     pub id: String,
     pub replacement_text: String,
-    pub opt_arg: String,
     pub horizontal_trailing_space: String,
     pub linebreaks_at_end: String,
     /// EndFinishesWithLineBreak 的生效值（仅 -m 且 verbatim/special 有该 poly-switch 时有意义）。
@@ -38,7 +37,6 @@ pub struct TrailingComment {
 pub struct SentenceObj {
     pub id: String,
     pub value: String,
-    pub leading_horizontal_space: String,
     pub follows: String,
 }
 
@@ -48,7 +46,6 @@ pub struct Storage {
     pub trailing_comments: Vec<TrailingComment>,
     pub comment_counter: usize,
     pub filecontents: Vec<VerbatimObj>,
-    pub file_starts_with_line_break: bool,
     pub file_ends_with_trailing_comment: bool,
     pub align_markup_block_present: bool,
     pub sentences: Vec<SentenceObj>,

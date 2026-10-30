@@ -69,6 +69,8 @@ pub fn as_scalar_string(v: Option<&Value>) -> Option<String> {
     }
 }
 
+/// Perl 真值语义：`-y` 传入的值在 `unescape_value` 里一律成为字符串，所以
+/// `"false"`/`"no"` 也算真——这与原版 latexindent.pl 一致，不要按 YAML 语义"修正"。
 pub fn as_bool(v: Option<&Value>) -> bool {
     match v {
         Some(Value::Bool(b)) => *b,
@@ -83,7 +85,7 @@ pub fn as_i64(v: Option<&Value>) -> Option<i64> {
     match v {
         Some(Value::Number(n)) => n.as_i64(),
         Some(Value::String(s)) => s.trim().parse().ok(),
-        Some(Value::Bool(b)) => Some(*b as i64),
+        Some(Value::Bool(b)) => Some(i64::from(*b)),
         _ => None,
     }
 }
@@ -250,44 +252,60 @@ fn yaml_tiny_rewrite(content: &str) -> String {
 /// Perl 的 YAML::Tiny 对 `"\([A-Z]"`、`"(?:\.\)(?!\h*[a-z]))"` 这种写法一律照读，
 /// serde_yaml 则直接判整份文件格式错误（`-l=` 文件被静默丢弃 → 设置全用默认值）。
 fn repair_dq_escapes(scalar: &str) -> Option<String> {
+    // 合法 YAML 双引号转义（按字符判断，非 ASCII 字符原样保留）
+    fn is_legal_escape(c: char) -> bool {
+        matches!(
+            c,
+            '0' | 'a'
+                | 'b'
+                | 't'
+                | 'n'
+                | 'v'
+                | 'f'
+                | 'r'
+                | 'e'
+                | ' '
+                | '"'
+                | '/'
+                | '\\'
+                | 'N'
+                | '_'
+                | 'L'
+                | 'P'
+                | 'x'
+                | 'u'
+                | 'U'
+                | '\n'
+                | '\r'
+        )
+    }
     let t = scalar.trim();
     if !t.starts_with('"') || !t.ends_with('"') || t.len() < 2 {
         return None;
     }
     let inner = &t[1..t.len() - 1];
-    let bytes = inner.as_bytes();
     let mut out = String::with_capacity(inner.len() + 8);
     let mut changed = false;
-    let mut i = 0;
-    while i < bytes.len() {
-        let c = bytes[i];
-        if c != b'\\' {
-            out.push(c as char);
-            i += 1;
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
             continue;
         }
-        // 行尾孤立的反斜杠：交给 serde 报错
-        if i + 1 >= bytes.len() {
-            out.push('\\');
-            i += 1;
-            continue;
-        }
-        let n = bytes[i + 1];
-        let legal = matches!(
-            n,
-            b'0' | b'a' | b'b' | b't' | b'n' | b'v' | b'f' | b'r' | b'e' | b' ' | b'"' | b'/'
-                | b'\\' | b'N' | b'_' | b'L' | b'P' | b'x' | b'u' | b'U' | b'\n' | b'\r'
-        );
-        if legal {
-            out.push('\\');
-            out.push(n as char);
-        } else {
+        match chars.next() {
+            // 行尾孤立的反斜杠：交给 serde 报错
+            None => out.push('\\'),
+            Some(n) if is_legal_escape(n) => {
+                out.push('\\');
+                out.push(n);
+            }
             // 非法转义：把反斜杠转义掉，保留字面反斜杠语义
-            out.push_str("\\\\");
-            out.push(n as char);
-            changed = true;
+            Some(n) => {
+                out.push_str("\\\\");
+                out.push(n);
+                changed = true;
+            }
         }
-        i += 2;
     }
     if changed {
         Some(format!("\"{out}\""))
@@ -1061,32 +1079,35 @@ impl MainSettings {
                 &["modifyLineBreaks", "textWrapOptions", "when"],
             )) == Some("after")
         {
-            let lookup = if name.is_empty() { "always-un-named" } else { name };
-            let rule_indent: Option<String> = if let Some(entry) =
-                get_path(&self.root, &["noAdditionalIndent", lookup])
-            {
-                let v = match entry.as_mapping() {
-                    Some(m) => get(m, thing),
-                    None => Some(entry),
-                };
-                match v {
-                    Some(v) if as_bool(Some(v)) => Some(String::new()),
-                    _ => None,
-                }
+            let lookup = if name.is_empty() {
+                "always-un-named"
             } else {
-                None
-            }
-            .or_else(|| {
-                get_path(&self.root, &["indentRules", lookup]).and_then(|entry| {
+                name
+            };
+            let rule_indent: Option<String> =
+                if let Some(entry) = get_path(&self.root, &["noAdditionalIndent", lookup]) {
                     let v = match entry.as_mapping() {
                         Some(m) => get(m, thing),
                         None => Some(entry),
                     };
-                    v.and_then(|v| as_str(Some(v)))
-                        .filter(|s| is_hspace(s) || s.is_empty())
-                        .map(|s| s.to_string())
-                })
-            });
+                    match v {
+                        Some(v) if as_bool(Some(v)) => Some(String::new()),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+                .or_else(|| {
+                    get_path(&self.root, &["indentRules", lookup]).and_then(|entry| {
+                        let v = match entry.as_mapping() {
+                            Some(m) => get(m, thing),
+                            None => Some(entry),
+                        };
+                        v.and_then(|v| as_str(Some(v)))
+                            .filter(|s| is_hspace(s) || s.is_empty())
+                            .map(|s| s.to_string())
+                    })
+                });
             if let Some(ind) = rule_indent {
                 self.previously_found.insert(
                     format!("textWrapAfter{name}"),

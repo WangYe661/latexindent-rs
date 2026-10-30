@@ -113,15 +113,39 @@ fn replacement_cases() {
 
 const E_CASES: &[RCase] = &[
     // L66：replace26.yaml（/sxge）
-    RCase { input: "test14.tex", args: &["-r", "-l=replace26", "-s", "-o=+-mod26"], expected: "test14-mod26.tex" },
+    RCase {
+        input: "test14.tex",
+        args: &["-r", "-l=replace26", "-s", "-o=+-mod26"],
+        expected: "test14-mod26.tex",
+    },
     // L78-80：issue-513.yaml（@sgmxe）
-    RCase { input: "issue-513.dtx", args: &["-s", "-r", "-m", "-l", "issue-513.yaml", "-o=+-mod1"], expected: "issue-513-mod1.dtx" },
-    RCase { input: "issue-513a.dtx", args: &["-s", "-r", "-m", "-l", "issue-513.yaml", "-o=+-mod1"], expected: "issue-513a-mod1.dtx" },
-    RCase { input: "issue-513b.dtx", args: &["-s", "-m", "-r", "-l", "issue-513.yaml", "-o=+-mod1"], expected: "issue-513b-mod1.dtx" },
+    RCase {
+        input: "issue-513.dtx",
+        args: &["-s", "-r", "-m", "-l", "issue-513.yaml", "-o=+-mod1"],
+        expected: "issue-513-mod1.dtx",
+    },
+    RCase {
+        input: "issue-513a.dtx",
+        args: &["-s", "-r", "-m", "-l", "issue-513.yaml", "-o=+-mod1"],
+        expected: "issue-513a-mod1.dtx",
+    },
+    RCase {
+        input: "issue-513b.dtx",
+        args: &["-s", "-m", "-r", "-l", "issue-513.yaml", "-o=+-mod1"],
+        expected: "issue-513b-mod1.dtx",
+    },
     // L83：issue-517a.yaml（/esgx）
-    RCase { input: "issue-517.tex", args: &["-s", "-l", "issue-517a.yaml", "-r", "-o=+-mod2"], expected: "issue-517-mod2.tex" },
+    RCase {
+        input: "issue-517.tex",
+        args: &["-s", "-l", "issue-517a.yaml", "-r", "-o=+-mod2"],
+        expected: "issue-517-mod2.tex",
+    },
     // L89：issue-524.yaml（@sgxe）
-    RCase { input: "issue-524.tex", args: &["-s", "-l", "issue-524.yaml", "-r", "-o=+-mod1"], expected: "issue-524-mod1.tex" },
+    RCase {
+        input: "issue-524.tex",
+        args: &["-s", "-l", "issue-524.yaml", "-r", "-o=+-mod1"],
+        expected: "issue-524-mod1.tex",
+    },
 ];
 
 #[test]
@@ -132,5 +156,3 @@ fn replacement_e_cases_pending() {
     }
     report();
 }
-
-

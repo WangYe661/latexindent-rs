@@ -12,13 +12,21 @@ const G_SWITCH: &str = "INFO:  Switch activated via YAML:";
 fn check_and_silent() {
     let s = Session::new(DIR, &[]);
     s.run(&["command1", "-l=switches1.yaml"]);
-    s.assert_log_grep_multi("indent.log", &[G_SWITCH, "INFO:  simple diff:"], "switches1.txt");
+    s.assert_log_grep_multi(
+        "indent.log",
+        &[G_SWITCH, "INFO:  simple diff:"],
+        "switches1.txt",
+    );
     // kSwitch: 0 → 不激活
     s.run(&["command1", "-l=switches2.yaml"]);
     s.assert_log_grep_multi("indent.log", &[G_SWITCH], "switches2.txt");
     // kvSwitch → verbose check
     s.run(&["command1", "-l=switches3.yaml"]);
-    s.assert_log_grep_multi("indent.log", &[G_SWITCH, "INFO:  simple diff:"], "switches3.txt");
+    s.assert_log_grep_multi(
+        "indent.log",
+        &[G_SWITCH, "INFO:  simple diff:"],
+        "switches3.txt",
+    );
 }
 
 /// mSwitch 输出与 kvSwitch 的 stdout diff。

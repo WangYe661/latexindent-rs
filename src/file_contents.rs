@@ -1,7 +1,7 @@
 //! filecontents 环境与 preamble 保护（对应 LatexIndent/FileContents.pm）。
 
 use crate::logger;
-use crate::settings::{as_bool, as_str, get};
+use crate::settings::{as_bool, get};
 use crate::state::{self, VerbatimObj};
 use crate::tokens::tok;
 
@@ -15,7 +15,7 @@ pub fn find_file_contents_environments_and_preamble(body: &str) -> String {
             .and_then(|v| v.as_mapping())
             .map(|m| {
                 m.iter()
-                    .filter(|(k, v)| as_bool(Some(v)) || v.is_mapping())
+                    .filter(|(_, v)| as_bool(Some(v)) || v.is_mapping())
                     .map(|(k, _)| k.as_str().unwrap_or_default().to_string())
                     .collect()
             })

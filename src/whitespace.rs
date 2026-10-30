@@ -4,18 +4,16 @@ use crate::settings::{as_bool, as_str, get};
 use crate::state;
 
 fn remove_trailing_ws_enabled(when: &str) -> bool {
-    state::settings(|s| {
-        match get(&s.root, "removeTrailingWhitespace") {
-            Some(v) if v.is_mapping() => {
-                let key = if when == "before" {
-                    "beforeProcessing"
-                } else {
-                    "afterProcessing"
-                };
-                as_bool(get(v.as_mapping().unwrap(), key))
-            }
-            other => as_bool(other),
+    state::settings(|s| match get(&s.root, "removeTrailingWhitespace") {
+        Some(v) if v.is_mapping() => {
+            let key = if when == "before" {
+                "beforeProcessing"
+            } else {
+                "afterProcessing"
+            };
+            as_bool(get(v.as_mapping().unwrap(), key))
         }
+        other => as_bool(other),
     })
 }
 
@@ -46,7 +44,9 @@ pub fn max_indentation_check(body: &str) -> String {
     });
 
     let max_indent = state::settings(|s| {
-        as_str(get(&s.root, "maximumIndentation")).unwrap_or("-1").to_string()
+        as_str(get(&s.root, "maximumIndentation"))
+            .unwrap_or("-1")
+            .to_string()
     });
     let is_hspace = !max_indent.is_empty() && max_indent.chars().all(|c| c == ' ' || c == '\t');
     if !is_hspace {
