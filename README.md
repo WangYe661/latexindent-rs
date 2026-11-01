@@ -4,7 +4,7 @@
 
 > **Experimental Project Notice**
 >
-> This is a 100% vibe coding experimental project intended to test the coding capabilities of language models. It is not actively maintained. Use it in production with caution.
+> This is a 100% vibe coding experimental project intended to test the coding capabilities of language models. It is not actively maintained. It is only marginally faster than the original, and rewriting in Rust is not a panacea for performance problems.
 
 A Rust rewrite of [latexindent.pl](https://github.com/cmhughes/latexindent.pl) (v4.0.2)
 for beautifying `.tex`, `.sty`, `.cls`, and `.bib` files.
@@ -134,10 +134,34 @@ latexindent-rs -n 10-20 myfile.tex
 
 # Check mode: exit code 0 if unchanged, 1 if changed
 latexindent-rs -k myfile.tex
+
+# Process several files in parallel (-j 0 = auto, -j 1 = sequential)
+latexindent-rs -w -j 0 chapter*.tex
+
+# Incremental cache: reuse the previous result when nothing changed
+latexindent-rs -w --cache chapter*.tex
 ```
 
 If the input file has no extension, `fileExtensionPreference` is used to look for
 `.tex`, `.sty`, `.cls`, and `.bib` in that order.
+
+### Performance switches (added here, not part of upstream latexindent.pl)
+
+| Switch | Description |
+| --- | --- |
+| `-j, --jobs=<N>` | Number of worker threads for multi-file runs. `0` (default) = one per available CPU, `1` = sequential. Single-file runs always stay sequential. |
+| `--cache[=<dir>]` | Enables the incremental cache (default directory `…/.latexindent-cache`, next to backup files). An entry stores *settings fingerprint + input hash + output hash + output text*. |
+
+Parallelism only changes CPU time, never the result: every file is processed with
+its own thread-local state, while the produced files and `indent.log` are still
+written in command-line order (`-j 1` and `-j 4` produce byte-identical files;
+`indent.log` matches line by line apart from the `UNIX time` stamp and file names).
+
+A cache hit means either the input is identical to the previous run (so the
+result is reused verbatim), or the file already *is* the previous output
+(formatting is idempotent, so the run is skipped). Changing settings
+(YAML, `-m/-r/-y/-l`, …) or the tool version invalidates old entries, and
+`-t/-tt` tracing bypasses the cache so the log stays complete.
 
 ### Example
 
@@ -178,7 +202,13 @@ Current result: **278 tests passed, 0 failed, 1 marked `#[ignore]`**. Run
 
 ## Known Limitations
 
-- **The speed improvement over the original project is lower than expected.**
+- PCRE2's `match limit` (10M steps) is stricter than Perl, which has none: malformed
+  input (unclosed environments, very deep nesting) can exhaust the exact pattern.
+  The tool then degrades through a chain of fallbacks (atomic environment body →
+  possessive argument bodies → both → line-based chunking, see `scan_with_fallback`
+  in `src/blocks.rs`): the output is still produced and the process never aborts,
+  but on such extreme input block boundaries may differ slightly from Perl (the
+  `-t` log records every `code block matching` fallback).
 - Perl's `/e` (execute code inside a substitution) is emulated natively, not by a
   Perl interpreter: `src/replacement_e.rs` recognises the eval snippets used by
   upstream's test corpus (ruler generation, `\draw`/prooftree alignment,
@@ -217,6 +247,7 @@ implemented with byte-for-byte identical output.
 | `src/switches.rs` | Command-line parsing and switch state |
 | `src/logger.rs` | `Logger.pm` / `LogFile.pm`: logging and `indent.log` |
 | `src/state.rs` | Counterpart of Perl globals (thread-local state) |
+| `src/cache.rs` | Incremental formatting cache (`--cache`, added here) |
 
 `tests/cases/` contains the upstream test cases, `tests/common/mod.rs` is the
 temporary-directory test fixture, and `tests/*.rs` organizes assertions by feature

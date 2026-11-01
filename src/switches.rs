@@ -28,6 +28,10 @@ pub struct Switches {
     pub check_verbose: bool,
     pub lines: Option<String>,
     pub gcstring: bool,
+    /// 并行处理的线程数（0 = 自动；1 = 顺序）。仅多文件时生效。
+    pub jobs: Option<usize>,
+    /// 增量缓存目录（None = 关闭；Some("") = 默认目录；Some(dir) = 指定目录）。
+    pub cache: Option<String>,
 }
 
 impl Switches {
@@ -135,6 +139,8 @@ pub fn parse_args(args: &[String]) -> (Switches, Vec<String>) {
                 "check",
                 "checkv",
                 "lines",
+                "jobs",
+                "cache",
                 "v",
                 "s",
                 "t",
@@ -206,6 +212,8 @@ fn apply(
             | "cruft"
             | "n"
             | "lines"
+            | "j"
+            | "jobs"
     );
     if takes_value && val.is_none() {
         if let Some(next) = it.peek() {
@@ -243,6 +251,11 @@ fn apply(
         "k" | "check" => flag(&mut sw.check),
         "kv" | "checkv" => flag(&mut sw.check_verbose),
         "n" | "lines" => sw.lines = val,
+        "j" | "jobs" => {
+            sw.jobs = Some(val.and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(0));
+        }
+        // `--cache` 不带值 → 默认目录；`--cache=<dir>` → 指定目录
+        "cache" => sw.cache = Some(val.unwrap_or_default()),
         "GCString" => flag(&mut sw.gcstring),
         _ => {
             // 未知开关忽略（Getopt::Long 默认报错，这里宽容处理）
@@ -296,5 +309,17 @@ mod tests {
     fn long_aliases() {
         let (sw, _) = p(&["-wd", "-rr", "-vv"]);
         assert!(sw.overwrite_if_different && sw.only_replacement && sw.vversion);
+    }
+
+    #[test]
+    fn jobs_and_cache_switches() {
+        let (sw, files) = p(&["-j", "4", "--cache", "a.tex", "b.tex"]);
+        assert_eq!(sw.jobs, Some(4));
+        assert_eq!(sw.cache.as_deref(), Some(""));
+        assert_eq!(files, vec!["a.tex", "b.tex"]);
+
+        let (sw, _) = p(&["--jobs=0", "--cache=.cache", "a.tex"]);
+        assert_eq!(sw.jobs, Some(0));
+        assert_eq!(sw.cache.as_deref(), Some(".cache"));
     }
 }

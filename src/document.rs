@@ -69,6 +69,10 @@ const HELP: &str = r#"usage: latexindent-rs [options] [file]
           as in check mode, but outputs diff to screen as well as logfile
       -n, --lines=<MIN-MAX>
           only operate on selected lines
+      -j, --jobs=<N>
+          number of files to process in parallel (0 = auto, 1 = sequential)
+      --cache[=<dir>]
+          reuse the previous output when a file's content and settings are unchanged
       --GCString
           measure widths using unicode grapheme clusters"#;
 
@@ -140,18 +144,45 @@ pub fn run(args: &[String]) {
         crate::settings::read_settings(&mut root, &local, &yaml, sw.only_default, &working_dir);
     apply_switches_via_yaml(&mut sw, &ms.root);
     switches::with_mut(|s| *s = sw.clone());
-    state::init_settings(ms);
+    state::init_settings(ms.clone());
     let root_clone = state::settings(|s| s.root.clone());
     state::init_patterns(crate::patterns::build(&root_clone, sw.is_m_switch_active()));
 
+    // ---- 增量缓存（--cache[=dir]）----
+    // `-t/-tt` 时日志里逐块 trace 是行为的一部分，不走缓存（否则日志会缺内容）；
+    // STDIN 输入没有稳定路径，同样不缓存。
+    let cache = if sw.is_t_switch_active() || files.iter().all(|f| f == "-") {
+        None
+    } else {
+        sw.cache.as_ref().map(|dir| {
+            let dir = if dir.trim().is_empty() {
+                format!("{}/.latexindent-cache", cruft_of(&files[0], &sw))
+            } else {
+                dir.clone()
+            };
+            crate::cache::Cache::new(dir)
+        })
+    };
+    let cache_fp = cache.as_ref().map(|_| cache_fingerprint(&sw, &ms.root));
+
     // ---- 逐文件操作 ----
     let raw_output_to_file = sw.output_to_file.clone();
+    let threads = planned_threads(&files, &sw);
     let mut file_count = 0usize;
-    for f in &files {
+    let mut queue: Vec<Job> = Vec::with_capacity(files.len());
+
+    for (idx, f) in files.iter().enumerate() {
         file_count += 1;
         state::reset_storage();
+        crate::tokens::reset();
         sw.output_to_file = raw_output_to_file.clone();
         switches::with_mut(|s| s.output_to_file = raw_output_to_file.clone());
+        // 并行模式下每文件的日志先落到自己的缓冲区，最后按顺序合并（日志与顺序执行一致）
+        let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let capture = threads > 1;
+        if capture {
+            logger::capture_begin(log.clone());
+        }
         if multiple_files {
             logger::info(&format!("*Filename: {f} ({file_count} of {})", files.len()));
         }
@@ -159,11 +190,73 @@ pub fn run(args: &[String]) {
         let cruft = sw.cruft_directory.clone().unwrap_or_else(|| dirname(f));
         let status = file_extension_check(f, &sw, &cruft);
         if status > 0 {
+            if capture {
+                logger::capture_end();
+            }
             file_status = status;
+            queue.push(Job::skipped(idx, log, status));
             continue;
         }
         sw = switches::with(|s| s.clone());
-        let mut body = take_body();
+        let body = take_body();
+        let original = if sw.is_check_switch_active() || sw.overwrite_if_different {
+            Some(take_original())
+        } else {
+            None
+        };
+        let file = CURRENT_FILE.with(|c| c.borrow().clone());
+
+        // 缓存命中：输入与设置都没变，直接复用上次的输出（跳过整条流水线）
+        let hit = match (cache.as_ref(), cache_fp.as_deref()) {
+            (Some(c), Some(fp)) => c.lookup(&file, fp, &body),
+            _ => None,
+        };
+        if capture {
+            logger::capture_end();
+        }
+        let prep = JobPrep {
+            file,
+            ext: current_extension(),
+            cruft,
+            body,
+            original,
+            sw: sw.clone(),
+            log,
+        };
+        if let Some(out) = hit {
+            logger::info(&format!(
+                "*incremental cache hit: {} (content and settings unchanged), skipping indentation",
+                prep.file
+            ));
+            queue.push(Job {
+                cached: Some(out),
+                ..Job::pending(idx, prep)
+            });
+            // 顺序路径立刻收尾；并行路径统一在收尾阶段按文件顺序输出
+            if threads == 1 {
+                if let Some(job) = queue.last_mut() {
+                    finish_job(job, cache.as_ref(), cache_fp.as_deref(), &mut check_status);
+                }
+            }
+            continue;
+        }
+
+        if threads > 1 {
+            // 并行路径：token 升级 / 正则重建 / 主处理都搬到 worker 线程（每文件独立状态）
+            queue.push(Job::pending(idx, prep));
+            continue;
+        }
+        let JobPrep {
+            file,
+            cruft,
+            body,
+            original,
+            mut sw,
+            log,
+            ext,
+        } = prep;
+
+        // 顺序路径：与旧行为逐字节一致（含 -wd 的开关继承等 quirk）
         crate::tokens::token_check(&body);
         // token_check 可能升级 token 名（追加 -LIN），patterns 里的 token 正则必须用最终 token 重建
         state::init_patterns(crate::patterns::build(
@@ -178,32 +271,44 @@ pub fn run(args: &[String]) {
         }
 
         // ---------- 主处理 ----------
-        body = operate_on_file(body, &sw);
+        let out = operate_on_file(body.clone(), &sw);
 
         // ---------- -wd：内容不变则不写不备份（BackUpFileProcedure::check_if_different） ----------
-        let original = if sw.is_check_switch_active() || sw.overwrite_if_different {
-            Some(take_original())
+        let wd_done = if sw.overwrite_if_different {
+            check_if_different(original.as_deref().unwrap_or(""), &out, &mut sw);
+            true
         } else {
-            None
+            false
         };
-        if sw.overwrite_if_different {
-            check_if_different(original.as_deref().unwrap_or(""), &body, &mut sw);
+        queue.push(Job {
+            out,
+            wd_done,
+            ..Job::pending(
+                idx,
+                JobPrep {
+                    file,
+                    ext,
+                    cruft,
+                    body,
+                    original,
+                    sw: sw.clone(),
+                    log,
+                },
+            )
+        });
+        // 顺序路径：立刻收尾（-wd/check/输出），日志顺序与旧版逐行一致
+        if let Some(job) = queue.last_mut() {
+            finish_job(job, cache.as_ref(), cache_fp.as_deref(), &mut check_status);
         }
+    }
 
-        // ---------- check 汇总 ----------
-        if sw.is_check_switch_active() {
-            let original = original.unwrap_or_default();
-            if original != body {
-                check_status = 1;
-            }
-            simple_diff(&original, &body, sw.is_check_verbose_switch_active());
+    if threads > 1 {
+        process_jobs_parallel(&mut queue, threads, &ms);
+        // ---------- 收尾（顺序）：-wd / check / 输出 ----------
+        queue.sort_by_key(|j| j.index);
+        for job in &mut queue {
+            finish_job(job, cache.as_ref(), cache_fp.as_deref(), &mut check_status);
         }
-        output_indented_text(
-            &body,
-            &sw,
-            &CURRENT_FILE.with(|c| c.borrow().clone()),
-            &cruft,
-        );
     }
 
     if sw.is_check_switch_active() && multiple_files {
@@ -227,6 +332,209 @@ pub fn run(args: &[String]) {
     if check_status == 1 {
         std::process::exit(1);
     }
+}
+
+/// 单个文件的作业（并行路径用；顺序路径也复用其收尾逻辑）。
+struct Job {    index: usize,
+    /// 解析后的文件名（fileExtensionPreference 补全、-o ++ 计数之后）
+    file: String,
+    ext: String,
+    cruft: String,
+    body: String,
+    original: Option<String>,
+    sw: Switches,
+    log: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    /// 缓存命中时直接复用上次的输出
+    cached: Option<String>,
+    /// 处理结果（并行 worker 或顺序路径写入）
+    out: String,
+    status: usize,
+    /// 顺序路径已在循环里做过 -wd 判定
+    wd_done: bool,
+    cache_written: bool,
+}
+
+/// 已解析好的单文件输入（作业的「原料」）。
+struct JobPrep {
+    file: String,
+    ext: String,
+    cruft: String,
+    body: String,
+    original: Option<String>,
+    sw: Switches,
+    log: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+impl Job {
+    fn pending(index: usize, prep: JobPrep) -> Job {
+        Job {
+            index,
+            file: prep.file,
+            ext: prep.ext,
+            cruft: prep.cruft,
+            body: prep.body,
+            original: prep.original,
+            sw: prep.sw,
+            log: prep.log,
+            cached: None,
+            out: String::new(),
+            status: 0,
+            wd_done: false,
+            cache_written: false,
+        }
+    }
+
+    fn skipped(
+        index: usize,
+        log: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+        status: usize,
+    ) -> Job {
+        Job {
+            index,
+            file: String::new(),
+            ext: String::new(),
+            cruft: String::new(),
+            body: String::new(),
+            original: None,
+            sw: Switches::default(),
+            log,
+            cached: None,
+            out: String::new(),
+            status,
+            wd_done: false,
+            cache_written: false,
+        }
+    }
+
+    /// 是否需要（并行）跑流水线：跳过文件与缓存命中都不需要。
+    fn needs_processing(&self) -> bool {
+        self.status == 0 && self.cached.is_none() && self.out.is_empty()
+    }
+}
+
+/// 收尾一个文件：合并日志 → -wd → check → 输出（并行时也在这里串行化写文件）。
+fn finish_job(
+    job: &mut Job,
+    cache: Option<&crate::cache::Cache>,
+    cache_fp: Option<&str>,
+    check_status: &mut usize,
+) {
+    logger::merge_captured(std::mem::take(&mut job.log.lock().unwrap()));
+    if job.status > 0 {
+        return;
+    }
+    let mut jsw = job.sw.clone();
+    switches::with_mut(|s| *s = jsw.clone());
+    CURRENT_FILE.with(|c| *c.borrow_mut() = job.file.clone());
+    CURRENT_EXT.with(|e| *e.borrow_mut() = job.ext.clone());
+    if let Some(cached) = job.cached.take() {
+        job.out = cached;
+    }
+    let body = std::mem::take(&mut job.out);
+
+    if let (Some(c), Some(fp)) = (cache, cache_fp) {
+        if !job.cache_written {
+            c.store(&job.file, fp, &job.body, &body);
+            job.cache_written = true;
+        }
+    }
+
+    // ---------- -wd：内容不变则不写不备份（BackUpFileProcedure::check_if_different） ----------
+    if !job.wd_done && jsw.overwrite_if_different {
+        check_if_different(job.original.as_deref().unwrap_or(""), &body, &mut jsw);
+    }
+
+    // ---------- check 汇总 ----------
+    if jsw.is_check_switch_active() {
+        let original = job.original.clone().unwrap_or_default();
+        if original != body {
+            *check_status = 1;
+        }
+        simple_diff(&original, &body, jsw.is_check_verbose_switch_active());
+    }
+    output_indented_text(&body, &jsw, &job.file, &job.cruft);
+}
+
+/// 并行度：只在多文件、未开屏幕日志（屏幕输出必须按文件顺序）时并行。
+fn planned_threads(files: &[String], sw: &Switches) -> usize {
+    if files.len() < 2 || sw.screenlog {
+        return 1;
+    }
+    match sw.jobs {
+        Some(1) => 1,
+        Some(n) if n > 1 => n.min(files.len()),
+        // 0 / 未指定：按可用并行度，但不超过文件数
+        _ => std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+            .min(files.len()),
+    }
+}
+
+/// 并行执行各文件的 `operate_on_file`（每文件独立线程局部状态）。
+fn process_jobs_parallel(queue: &mut [Job], threads: usize, ms: &crate::settings::MainSettings) {
+    use std::sync::Mutex;
+    let pending: Vec<&mut Job> = queue.iter_mut().filter(|j| j.needs_processing()).collect();
+    if pending.is_empty() {
+        return;
+    }
+    let work = Mutex::new(pending);
+    let workers = threads.min(work.lock().map(|w| w.len()).unwrap_or(1)).max(1);
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| loop {
+                let job = {
+                    let Ok(mut guard) = work.lock() else { break };
+                    guard.pop()
+                };
+                let Some(job) = job else { break };
+                run_job(job, ms);
+            });
+        }
+    });
+}
+
+/// worker：初始化本线程的 token/settings/patterns 后跑一遍流水线。
+fn run_job(job: &mut Job, ms: &crate::settings::MainSettings) {
+    logger::capture_begin(job.log.clone());
+    state::reset_storage();
+    crate::tokens::reset();
+    switches::with_mut(|s| *s = job.sw.clone());
+    state::init_settings(ms.clone());
+    CURRENT_FILE.with(|c| *c.borrow_mut() = job.file.clone());
+    CURRENT_EXT.with(|e| *e.borrow_mut() = job.ext.clone());
+
+    crate::tokens::token_check(&job.body);
+    state::init_patterns(crate::patterns::build(
+        &ms.root.clone(),
+        job.sw.is_m_switch_active(),
+    ));
+    if state::patterns(|p| p.special_present) {
+        logger::trace("*specialBeginEnd: at least one specialBeginEnd code block present");
+    } else {
+        logger::trace("*specialBeginEnd empty, NO specialBeginEnd code blocks present");
+    }
+    job.out = operate_on_file(job.body.clone(), &job.sw);
+    job.sw = switches::with(|s| s.clone());
+    logger::capture_end();
+}
+
+/// 缓存指纹：工具版本 + 生效设置 + 影响输出的开关。
+fn cache_fingerprint(sw: &Switches, root: &serde_yaml::Mapping) -> String {
+    let yaml = serde_yaml::to_string(root).unwrap_or_default();
+    let mut s = String::with_capacity(yaml.len() + 64);
+    s.push_str(VERSION);
+    s.push('\n');
+    s.push_str(&yaml);
+    s.push_str(&format!(
+        "\nm={} r={} rv={} rr={} gc={}",
+        sw.is_m_switch_active(),
+        sw.is_r_switch_active(),
+        sw.is_rv_switch_active(),
+        sw.is_rr_switch_active(),
+        sw.gcstring
+    ));
+    crate::cache::hash128(s.as_bytes())
 }
 
 fn cruft_of(file: &str, sw: &Switches) -> String {
@@ -731,6 +1039,10 @@ fn output_logfile_current() {
 // 备份（对应 BackUpFileProcedure.pm）
 // ---------------------------------------------------------------------------
 
+/// 备份文件命名要查目录、可能要轮转历史备份，并行时整体串行化：
+/// 否则两个 worker 会算出同一个备份名（-c 下同名文件、maxNumberOfBackUps 计数）。
+static BACKUP_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn create_back_up_file(sw: &Switches, body: &str) {
     if !sw.overwrite {
         return;
@@ -739,6 +1051,9 @@ fn create_back_up_file(sw: &Switches, body: &str) {
     if file == "-" {
         return;
     }
+    let _guard = BACKUP_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     logger::info("*Backup procedure (-w flag active):");
     let cruft = cruft_of(&file, sw);
     let _ = std::fs::create_dir_all(&cruft);

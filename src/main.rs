@@ -1,6 +1,7 @@
 mod alignment;
 mod blank_lines;
 mod blocks;
+mod cache;
 mod document;
 mod double_backslash;
 mod file_contents;

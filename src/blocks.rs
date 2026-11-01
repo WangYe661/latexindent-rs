@@ -58,28 +58,122 @@ pub fn find_all_code_blocks(body: &str, current_indent: &str) -> String {
         return String::new();
     }
     let is_m = switches::with(|s| s.is_m_switch_active());
-    // 精确版（Perl 同款「参数体优先 + 普通星号」）先跑：它能靠回溯让嵌套块
-    // （`\if...\fi`、special、环境）不越过参数的闭括号，语义与 Perl 一致。
-    // 病态输入会指数回溯撞 pcre2 match limit → 整段重跑「所有格」兜底版
-    // （永不回溯，块边界在极端嵌套下可能与 Perl 略有出入，但绝不 panic）。
-    let accurate = state::patterns(|p| {
-        crate::patterns::try_replace_all_with(body, &p.all_code_blocks, |caps| {
-            render_block(caps, current_indent, is_m)
-        })
-    });
-    let out = match accurate {
-        Ok(o) => o,
-        Err(_) => state::patterns(|p| {
-            replace_all_with(body, &p.all_code_blocks_fast, |caps| {
-                render_block(caps, current_indent, is_m)
-            })
-        }),
-    };
+    let out = scan_with_fallback(body, current_indent, is_m, 0);
     if is_m {
         crate::mlb::line_break_token_adjust(&out)
     } else {
         out
     }
+}
+
+/// pcre2 的 match limit（默认 10M 步）是**每次 `pcre2_match` 调用**的预算：
+/// `captures_iter` 在找不到下一个匹配时会一路 bumpalong，所以「从上次匹配结尾到下一个
+/// 匹配之间」的整段扫描共用一个预算。LaTeX 里块挨得密，正常文档远用不完，但畸形输入
+/// （未闭合环境、极深嵌套）会指数回溯把它烧光。这里的回退链逐级收紧：
+///
+/// 1. `all_code_blocks`：照抄 Perl 的精确版（可回溯），语义优先；
+/// 2. `atomic_env_variant`：只把 env body 锁成单遍，掐掉 2^N 回溯；
+/// 3. `all_code_blocks_fast`：参数体改所有格，永不回溯；
+/// 4. 分块：把还没处理完的尾部按行切成两半各自重跑上面的链路（深度/下限受控）；
+/// 5. 实在不行就原样保留并告警——绝不 panic（旧版在这里会 abort，整个进程退出）。
+///
+/// 每一级都从上一级停下**的位置**继续（`try_replace_all_with_upto` 会交出已渲染的前缀），
+/// 所以前面的块语义仍是 Perl 那套，重扫的只是还没成功的那一段。
+fn scan_with_fallback(
+    body: &str,
+    current_indent: &str,
+    is_m: bool,
+    depth: usize,
+) -> String {
+    let (mut out, rest) = scan_variants(body, current_indent, is_m);
+    if rest >= body.len() {
+        return out;
+    }
+    let tail = &body[rest..];
+    if depth >= CHUNK_MAX_DEPTH || tail.len() <= CHUNK_FLOOR {
+        logger::warn(
+            "*code block matching exceeded the regex engine limit for this stretch; leaving it unchanged",
+        );
+        logger::trace(tail);
+        out.push_str(tail);
+        return out;
+    }
+    let at = split_point(tail);
+    logger::trace(&format!(
+        "*code block matching: remaining text starts with {:?}",
+        &tail[..tail.len().min(240)]
+    ));
+    logger::warn(&format!(
+        "*code block matching exceeded the regex engine limit; splitting the remaining {} characters at a line break",
+        tail.chars().count()
+    ));
+    out.push_str(&scan_with_fallback(&tail[..at], current_indent, is_m, depth + 1));
+    out.push_str(&scan_with_fallback(&tail[at..], current_indent, is_m, depth + 1));
+    out
+}
+
+/// 依次尝试四级模式，返回 (已渲染文本, 未处理的起始偏移)。
+/// 级别含义见 `patterns::lazy_variant`；每一级都从上一级停下的偏移继续。
+fn scan_variants(body: &str, current_indent: &str, is_m: bool) -> (String, usize) {
+    let mut out = String::new();
+    let mut start = 0usize;
+    for variant in 0..4 {
+        if start >= body.len() {
+            return (out, start);
+        }
+        let res = state::patterns(|p| {
+            crate::patterns::lazy_variant(p, variant).map(|re| {
+                crate::patterns::try_replace_all_with_upto(&body[start..], re, |caps| {
+                    render_block(caps, current_indent, is_m)
+                })
+            })
+        });
+        // 变体编译失败（理论上不会）：跳过这一级
+        let Some((prefix, fail)) = res else { continue };
+        out.push_str(&prefix);
+        match fail {
+            None => return (out, body.len()),
+            Some((e, at)) => {
+                logger::trace(&format!(
+                    "*code block matching: variant {variant} stopped at byte {at} ({} characters scanned, {} left): {e}",
+                    at,
+                    body.len() - start - at,
+                    e = e
+                ));
+                start += at;
+            }
+        }
+    }
+    (out, start)
+}
+
+/// 分块下限：小于这个长度还失败就放弃（再切也切不出能匹配的东西）。
+const CHUNK_FLOOR: usize = 4096;
+/// 分块最大深度（2^8 段）。
+const CHUNK_MAX_DEPTH: usize = 8;
+
+/// 在 `s` 中间偏置的位置找一个换行作为切点，优先空行（`\n\n`），
+/// 这样切开的块更可能落在「块与块之间」而不是某个参数体中间。
+fn split_point(s: &str) -> usize {
+    let bytes = s.as_bytes();
+    let lo = s.len() / 4;
+    let hi = s.len() * 3 / 4;
+    let blank = |i: usize| i > 0 && bytes[i - 1] == b'\n' && bytes[i] == b'\n';
+    for i in lo..hi {
+        if blank(i) {
+            return i;
+        }
+    }
+    let mid = s.len() / 2;
+    for d in 0..mid {
+        if mid + d < s.len() && bytes[mid + d] == b'\n' {
+            return mid + d + 1;
+        }
+        if mid >= d && bytes[mid - d] == b'\n' {
+            return mid - d + 1;
+        }
+    }
+    mid
 }
 
 fn render_block(caps: &Captures, current_indent: &str, is_m: bool) -> String {

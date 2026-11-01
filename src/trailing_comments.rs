@@ -98,6 +98,11 @@ pub fn remove_trailing_comments(body: &str) -> String {
 }
 
 /// put_trailing_comments_back_in：token 还原为 % 注释文本。
+///
+/// 旧实现逐条注释编译两条正则并**整篇扫描 1–2 次**，2 MB 文档上是 O(n×m)
+/// （实测 0.76 s）。这里改成：先扫一遍拿到所有 token 的位置，
+/// 若每行最多只有一个 token（`%` 注释到行尾为止，正常文档都是如此），
+/// 就单遍拼出结果；否则回退到逐个 token 的旧路径（token 会互相影响时保持原语义）。
 pub fn put_trailing_comments_back_in(body: &str) -> String {
     let t = tok(|t| t.clone());
     let mut body = body.to_string();
@@ -122,10 +127,93 @@ pub fn put_trailing_comments_back_in(body: &str) -> String {
             format!("{}\n", crate::patterns::gn(caps, 1))
         });
     }
+
+    let re = crate::patterns::re_new(&format!(
+        r"%{}\d+{}",
+        esc_lit(&t.trailing_comment),
+        esc_lit(&t.end_of_token)
+    ))
+    .unwrap();
+    let spans: Vec<(usize, usize)> = re
+        .captures_iter(body.as_bytes())
+        .flatten()
+        .map(|c| {
+            let m = c.get(0).unwrap();
+            (m.start(), m.end())
+        })
+        .collect();
+
+    // 每行是否只有一个 token？否则走旧路径（见函数注释）。
+    let mut multi_token_line = false;
+    {
+        let mut line = 0usize;
+        let mut pos = 0usize;
+        let mut last_line: Option<usize> = None;
+        for &(start, _) in &spans {
+            line += body[pos..start].matches('\n').count();
+            pos = start;
+            if last_line == Some(line) {
+                multi_token_line = true;
+            }
+            last_line = Some(line);
+        }
+    }
+
+    if !multi_token_line {
+        return restore_single_pass(&body, &spans, &comments);
+    }
+    restore_per_token(body, &comments)
+}
+
+/// 单遍还原（每行至多一个 token，互不影响）。
+///
+/// `at_line_end` 的判据照抄 Perl 的条件正则 `token((?:(?!(?<!\\)%).*?))(\h*)?$`：
+/// 注意那个负向断言**没有量化**，所以只在 token 紧后面检查一次——
+/// 也就是「token 紧跟的字符是不是未转义的 `%`」；之后 `.*?` 可以吞任意字符到行尾。
+/// 断言不成立（紧跟 `%`）时整条正则匹配不到，Perl 那边当作「在行尾」处理。
+fn restore_single_pass(
+    body: &str,
+    spans: &[(usize, usize)],
+    comments: &[state::TrailingComment],
+) -> String {
+    let mut out = String::with_capacity(body.len());
+    let mut last = 0usize;
+    for &(start, end) in spans {
+        let id = &body[start + 1..end];
+        let Some(c) = comments.iter().find(|c| c.id == id) else {
+            continue;
+        };
+        out.push_str(&body[last..start]);
+        let line_end = body[end..]
+            .find('\n')
+            .map(|i| end + i)
+            .unwrap_or(body.len());
+        let rest = &body[end..line_end];
+        let at_line_end = rest.starts_with('%')
+            || rest
+                .trim_end_matches(crate::whitespace::is_hspace)
+                .is_empty();
+        if at_line_end {
+            out.push('%');
+            out.push_str(&c.value);
+            last = end;
+        } else {
+            // 不在行尾：整行剩余内容前移，注释正文挪到换行前
+            out.push_str(rest);
+            out.push('%');
+            out.push_str(&c.value);
+            last = line_end;
+        }
+    }
+    out.push_str(&body[last..]);
+    out
+}
+
+/// 旧路径：同一行出现多个 token 时，token 之间会互相影响，逐条处理保持原语义。
+fn restore_per_token(mut body: String, comments: &[state::TrailingComment]) -> String {
     for c in comments.iter().rev() {
         let token = format!("%{}", c.id);
         let esc = esc_lit(&token);
-        // Perl：若注释 token 不在行尾（同行其后有非 % 内容），把注释移到行尾
         let re_cond =
             crate::patterns::re_new(&format!(r"(?m){esc}((?:(?!(?<!\\)%).*?))(\h*)?$")).unwrap();
         let at_line_end = match re_cond.captures(body.as_bytes()).unwrap() {

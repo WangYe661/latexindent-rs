@@ -4,7 +4,7 @@
 
 > **实验性项目声明**
 >
-> 本项目是一个 100% vibe coding 的实验性项目，用于测试模型的编程能力。本项目不会活跃维护，在生产环境中使用请务必谨慎。
+> 本项目是一个 100% vibe coding 的实验性项目，用于测试模型的编程能力。本项目不会活跃维护。本项目速度相较于原版仅有微小提升，使用 Rust 重写并不是解决性能问题的万能药。
 
 用 Rust 重写的 [latexindent.pl](https://github.com/cmhughes/latexindent.pl)（v4.0.2），
 用于美化 `.tex`、`.sty`、`.cls`、`.bib` 文件。
@@ -119,10 +119,32 @@ latexindent-rs -n 10-20 myfile.tex
 
 # 检查模式：未变化退出码 0，有变化退出码 1
 latexindent-rs -k myfile.tex
+
+# 多文件并行处理（-j 0 = 按可用 CPU 自动，-j 1 = 顺序）
+latexindent-rs -w -j 0 chapter*.tex
+
+# 增量缓存：内容与设置都没变时直接复用上次结果
+latexindent-rs -w --cache chapter*.tex
 ```
 
 输入文件不带扩展名时，按 `fileExtensionPreference` 依次查找
 `.tex`、`.sty`、`.cls`、`.bib`。
+
+### 性能相关开关（本项目新增，上游 latexindent.pl 无对应项）
+
+| 开关 | 说明 |
+| --- | --- |
+| `-j, --jobs=<N>` | 多文件并行处理的线程数。`0`（默认）= 按可用 CPU 自动，`1` = 顺序执行。只有一个文件时始终顺序执行。 |
+| `--cache[=<dir>]` | 开启增量缓存。目录默认是 `/…/.latexindent-cache`（与备份文件同处）；缓存条目记录「设置指纹 + 输入哈希 + 输出哈希 + 输出文本」。 |
+
+并行处理只影响 CPU 时间，不影响结果：每个文件都在自己的线程局部状态里处理，
+产物与 `indent.log` 仍按命令行给定的文件顺序写出（`-j 1` 与 `-j 4` 的产物逐字节相同，
+`indent.log` 除 `UNIX time` 时间戳与文件名外逐行相同）。
+
+增量缓存命中分两种：输入与上次完全相同（结果确定可复用），
+或文件内容已经是本工具上一次的输出（格式化幂等，直接跳过）。
+设置（YAML、`-m/-r/-y/-l` 等）或工具版本变化会让旧条目自动失效；
+`-t/-tt` 追踪模式下不使用缓存，以免日志缺内容。
 
 ### 示例
 
@@ -161,7 +183,10 @@ cargo test
 
 ## 已知限制
 
-- **本项目相较于原项目速度提升低于预期。**
+- PCRE2 的 `match limit`（10M 步）比 Perl「无上限」严格：未闭合环境、极深嵌套等畸形输入
+  会让精确版正则超限。此时按「env body 原子化 → 参数体所有格 → 两级叠加 → 按行分块」
+  逐级回退（见 `src/blocks.rs` 的 `scan_with_fallback`），产物仍正确、进程不会退出，
+  但极端输入下块边界可能与 Perl 略有出入（`-t` 日志里会留下 `code block matching` 记录）。
 - `-r` / `-rv` / `-rr` 替换模式中，Perl 的 `/e` 由原生代码模拟而非 Perl 解释器：
   `src/replacement_e.rs` 识别上游测试集里用到的 eval 代码块（ruler 生成、
   `\draw`/prooftree 对齐、`cmhlistings` 展平、数学公式规范化）并用 Rust 逐字节复刻。
@@ -196,6 +221,7 @@ cargo test
 | `src/switches.rs` | 命令行解析与开关状态 |
 | `src/logger.rs` | `Logger.pm` / `LogFile.pm`：日志与 `indent.log` |
 | `src/state.rs` | Perl 全局变量的对应物（thread-local 状态） |
+| `src/cache.rs` | 增量格式化缓存（`--cache`，本项目新增） |
 
 `tests/cases/` 是上游测试用例，`tests/common/mod.rs` 是临时目录测试夹具，
 `tests/*.rs` 按功能域组织断言。

@@ -27,6 +27,17 @@ pub struct MainSettings {
     pub previously_found: HashMap<String, ObjectSettings>,
 }
 
+impl Clone for MainSettings {
+    /// `previously_found` 只是对象设置缓存，复制时不必带走（每线程/每文件重建更省）。
+    fn clone(&self) -> MainSettings {
+        MainSettings {
+            root: self.root.clone(),
+            special_lookup_middle: self.special_lookup_middle.clone(),
+            previously_found: HashMap::new(),
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // 取值助手
 // ---------------------------------------------------------------------------

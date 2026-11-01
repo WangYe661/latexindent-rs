@@ -99,6 +99,11 @@ thread_local! {
     pub static TOKENS: RefCell<Tokens> = RefCell::new(Tokens::default());
 }
 
+/// 每个文件重新开始 token 表（并行处理时保证各文件互不影响）。
+pub fn reset() {
+    TOKENS.with(|t| *t.borrow_mut() = Tokens::default());
+}
+
 /// 读取 token 字符串快照（作用域内避免长期持有借用）。
 pub fn tok<T>(f: impl FnOnce(&Tokens) -> T) -> T {
     TOKENS.with(|t| f(&t.borrow()))

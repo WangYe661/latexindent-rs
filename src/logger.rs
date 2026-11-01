@@ -1,6 +1,7 @@
 //! 日志（对应 LatexIndent/Logger.pm + LogFile.pm 的输出格式）。
 
-use std::sync::Mutex;
+use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
 pub struct Logger {
@@ -19,12 +20,42 @@ impl Logger {
     }
 }
 
+thread_local! {
+    /// 并行处理时每个文件的日志先落到自己的缓冲区，最后按文件顺序合并进 LOG，
+    /// 这样多线程下的 indent.log 与顺序执行完全一致。
+    static CAPTURE: RefCell<Option<Arc<Mutex<Vec<String>>>>> = const { RefCell::new(None) };
+}
+
+/// 开始把本线程产生的日志写进 `buf`。
+pub fn capture_begin(buf: Arc<Mutex<Vec<String>>>) {
+    CAPTURE.with(|c| *c.borrow_mut() = Some(buf));
+}
+
+/// 结束捕获，返回在此之前绑定的缓冲区。
+pub fn capture_end() {
+    CAPTURE.with(|c| *c.borrow_mut() = None);
+}
+
+fn push_line(line: String) {
+    if let Some(buf) = CAPTURE.with(|c| c.borrow().clone()) {
+        if let Ok(mut v) = buf.lock() {
+            v.push(line);
+            return;
+        }
+    }
+    with_log(|log| log.lines.push(line));
+}
+
 /// 单线程 CLI 里这把锁不会被争用；即便某处 panic 毒化了锁，也不该让后续日志跟着崩。
 fn with_log<T>(f: impl FnOnce(&mut Logger) -> T) -> T {
     let mut guard = LOG
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     f(&mut guard)
+}
+
+fn screenlog_on() -> bool {
+    with_log(|log| log.screenlog)
 }
 
 fn emit(msg: &str, star_prefix: &str, cont_indent: &str, always_print: bool) {
@@ -39,11 +70,8 @@ fn emit(msg: &str, star_prefix: &str, cont_indent: &str, always_print: bool) {
     } else {
         prefix_lines_keep_tail(msg, cont_indent)
     };
-    let screenlog = with_log(|log| {
-        log.lines.push(formatted.clone());
-        log.screenlog
-    });
-    if screenlog || always_print {
+    push_line(formatted.clone());
+    if screenlog_on() || always_print {
         println!("{formatted}");
     }
 }
@@ -69,11 +97,8 @@ pub fn info(msg: &str) {
 pub fn warn(msg: &str) {
     if let Some(rest) = msg.strip_prefix('*') {
         let formatted = format!("WARN:  {rest}");
-        let screenlog = with_log(|log| {
-            log.lines.push(formatted.clone());
-            log.screenlog
-        });
-        if screenlog {
+        push_line(formatted.clone());
+        if screenlog_on() {
             println!("{formatted}");
         }
     } else {
@@ -97,7 +122,7 @@ pub fn fatal(msg: &str) {
             .collect::<Vec<_>>()
             .join("\n")
     };
-    with_log(|log| log.lines.push(formatted.clone()));
+    push_line(formatted.clone());
     // 诊断信息走 stderr：stdout 可能正被重定向为缩进后的文档
     eprintln!("{formatted}");
 }
@@ -110,11 +135,8 @@ pub fn trace(msg: &str) {
     }
     if let Some(rest) = msg.strip_prefix('*') {
         let formatted = format!("TRACE: {rest}");
-        let screenlog = with_log(|log| {
-            log.lines.push(formatted.clone());
-            log.screenlog
-        });
-        if screenlog {
+        push_line(formatted.clone());
+        if screenlog_on() {
             println!("{formatted}");
         }
     } else {
@@ -128,4 +150,12 @@ pub fn set_screenlog(on: bool) {
 
 pub fn take_lines() -> Vec<String> {
     with_log(|log| std::mem::take(&mut log.lines))
+}
+
+/// 把某个文件捕获到的日志按顺序追加到全局日志。
+pub fn merge_captured(lines: Vec<String>) {
+    if lines.is_empty() {
+        return;
+    }
+    with_log(|log| log.lines.extend(lines));
 }

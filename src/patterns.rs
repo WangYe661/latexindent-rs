@@ -8,9 +8,13 @@
 
 use pcre2::bytes::{Captures, Match, Regex, RegexBuilder};
 use serde_yaml::Value;
+use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
 
 use crate::settings::{as_bool, as_str, get, get_path};
 use crate::tokens::tok;
+
+static REGEX_CACHE: OnceLock<RwLock<HashMap<String, Regex>>> = OnceLock::new();
 
 /// 统一正则编译入口：UCP+UTF（对齐 Perl 字符语义，匹配边界必落在字符边界，
 /// 避免字节模式下 `.`/类匹配半个 UTF-8 字符导致切片 panic）。
@@ -62,41 +66,132 @@ fn fast_variant(src: &str, loop_pairs: &[(String, String)]) -> String {
     out
 }
 
-/// `replace_all_with` 的可失败版本：正则超限时返回 Err 而不是 panic，
-/// 供「精确版失败 → 所有格版重跑」的回退路径使用。
-pub fn try_replace_all_with(
+/// `replace_all_with` 的可失败版本：失败时**保留已经产出的前缀**并给出失败位置
+/// （相对 `body` 的字节偏移 = 上一个成功匹配的结尾）。
+///
+/// 命中 pcre2 的 match limit 时，前半篇往往已经正确渲染完；把前缀丢掉再整篇重跑
+/// 等于白扫一遍（1.9 MB 的基准文件上那是 10 秒级的浪费），所以这里把进度交回调用方，
+/// 供「精确版失败 → 原子版 → 所有格版 → 分块」的回退链从断点续跑。
+pub fn try_replace_all_with_upto(
     body: &str,
     re: &Regex,
     mut f: impl FnMut(&Captures) -> String,
-) -> Result<String, pcre2::Error> {
+) -> (String, Option<(pcre2::Error, usize)>) {
     let bytes = body.as_bytes();
     let mut out = String::new();
     let mut last = 0usize;
     for cap in re.captures_iter(bytes) {
-        let cap = cap?;
+        let cap = match cap {
+            Ok(c) => c,
+            Err(e) => return (out, Some((e, last))),
+        };
         let m = cap.get(0).unwrap();
         out.push_str(&body[last..m.start()]);
         out.push_str(&f(&cap));
         last = m.end();
     }
     out.push_str(&body[last..]);
-    Ok(out)
+    (out, None)
+}
+
+/// 该正则是否含递归/子程序调用（`(?(DEFINE))` + `(?&name)`）。
+///
+/// 这类模式（代码块、参数、middle）**不**开 JIT：PCRE2 的 JIT 在深递归上
+/// 报 match limit（-47）/ JIT stack limit（-46）的时机比解释器早得多，
+/// 而这里的限额错误会改变块边界判定（`all_code_blocks` 回退到「所有格」版），
+/// 甚至让兜底版也一起超限。解释器在这类输入上与 Perl 行为一致，保持原样。
+fn has_subroutine_calls(src: &str) -> bool {
+    src.contains("(?&") || src.contains("(?R") || src.contains("(?0")
 }
 
 pub fn re_new(src: &str) -> Result<Regex, pcre2::Error> {
-    // `(?J)`：允许重名捕获组（等价于 Perl 的默认行为）。用户自定义
-    // fineTuning.environments.begin/end 常自带命名组（如 issue-619 的 `(?<ENVNAME>`），
-    // 同一段片段会被同时内联到顶层 pattern 与 DEFINE 块里 → 不开启会因
-    // PCRE2_DUPNAMES not set 编译失败。
-    let mut src = src.to_string();
-    if !src.starts_with("(?J)") {
-        src.insert_str(0, "(?J)");
+    let key = if src.starts_with("(?J)") {
+        src.to_string()
+    } else {
+        // `(?J)`：允许重名捕获组（等价于 Perl 的默认行为）。用户自定义
+        // fineTuning.environments.begin/end 常自带命名组（如 issue-619 的 `(?<ENVNAME>`），
+        // 同一段片段会被同时内联到顶层 pattern 与 DEFINE 块里 → 不开启会因
+        // PCRE2_DUPNAMES not set 编译失败。
+        format!("(?J){src}")
+    };
+
+    if let Some(re) = cache_lookup(&key) {
+        return Ok(re);
     }
-    RegexBuilder::new().ucp(true).build(&src)
+    let re = build_regex(&key)?;
+    cache_store(&key, &re);
+    Ok(re)
+}
+
+/// 正则编译缓存：`re_new` 的调用点常常在**每个块**上重复编译同一份源码
+/// （`make_middle_regex` 每次都拼一遍 `defs`，尾注释还原甚至每行一个正则），
+/// 而 PCRE2 编译（含 JIT 编译）是毫秒级。`Regex::clone` 只复制
+/// `Arc<Code>`+match-data 池，代价远低于重新编译。
+const CACHE_CAP: usize = 512;
+
+fn cache_lookup(key: &str) -> Option<Regex> {
+    let cache = REGEX_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+    cache.read().ok()?.get(key).cloned()
+}
+
+fn cache_store(key: &str, re: &Regex) {
+    let cache = REGEX_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+    if let Ok(mut cache) = cache.write() {
+        // 用户 yaml / 尾注释 token 会让键空间无界，满了就整体丢弃重来；
+        // 丢弃只会退化成「重新编译一次」，不影响语义。
+        if cache.len() >= CACHE_CAP {
+            cache.clear();
+        }
+        cache.insert(key.to_string(), re.clone());
+    }
+}
+
+/// 回退链的第 `which` 级（0 = 精确版；后三级按需编译，编译失败时返回 None 表示该级不可用）。
+///
+/// 三级收紧对应不同来源的指数回溯，逐个叠加：
+///
+/// | 级别 | 变体 | 治的病 |
+/// | --- | --- | --- |
+/// | 0 | 精确版（照抄 Perl） | —— |
+/// | 1 | env body 原子化 | 未闭合环境：body 里每个 `\begin` 都有「当嵌套环境吃 / 当单字符吃」两种读法，`\end{同名}` 找不到时 2^N 条路径 |
+/// | 2 | 参数体所有格 | 参数体循环里 `dCODE` 回溯 |
+/// | 3 | 1 + 2 | 两者同时存在（`sampleBEFORE-smaller.tex` 的未闭合 `\begin{exercises}`） |
+///
+/// 只在上一级撞 pcre2 的 match limit 之后才会用到，所以对正常输入零影响。
+pub fn lazy_variant(p: &PatternSet, which: usize) -> Option<&Regex> {
+    match which {
+        0 => Some(&p.all_code_blocks),
+        1 => p
+            .all_code_blocks_atomic
+            .get_or_init(|| re_new(&p.all_code_blocks_atomic_src).ok())
+            .as_ref(),
+        2 => Some(&p.all_code_blocks_fast),
+        _ => p
+            .all_code_blocks_atomic_fast
+            .get_or_init(|| re_new(&p.all_code_blocks_atomic_fast_src).ok())
+            .as_ref(),
+    }
+}
+
+fn build_regex(src: &str) -> Result<Regex, pcre2::Error> {
+    // JIT 是解释模式的数十倍速：`(?m)^\h*` 这类「锚点 + 可变长量词」的未锚定扫描
+    // 在解释器里要逐字节试起点（360KB 文件约 2.1s，JIT 后约 3ms）。
+    // 用 jit_if_available：个别构造 JIT 不支持时静默回退到解释器，不影响正确性。
+    let jit = !has_subroutine_calls(src);
+    RegexBuilder::new()
+        .ucp(true)
+        .jit_if_available(jit)
+        .build(src)
 }
 
 pub struct PatternSet {
     pub all_code_blocks: Regex,
+    /// `all_code_blocks` 的「env body 原子化」变体（按需编译，见 `lazy_variant`）。
+    pub all_code_blocks_atomic_src: String,
+    pub all_code_blocks_atomic: std::sync::OnceLock<Option<Regex>>,
+    /// 「env body 原子化 + 参数体所有格」变体：两种收紧同时生效，用得最晚。
+    pub all_code_blocks_atomic_fast_src: String,
+    pub all_code_blocks_atomic_fast: std::sync::OnceLock<Option<Regex>>,
     /// `all_code_blocks` 的「所有格」变体：参数体循环用 `dCODE` 优先 + `*+`。
     /// 仅在精确版撞 pcre2 match limit（如 broken.tex 的病态嵌套）时整段回退使用。
     pub all_code_blocks_fast: Regex,
@@ -640,6 +735,20 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
     let all_code_blocks = crate::patterns::re_new(&all_code_blocks_src).unwrap_or_else(|e| {
         panic!("allCodeBlocks 拼装失败: {e}\n{all_code_blocks_src}");
     });
+
+    // 「env body 原子化」变体（惰性编译）：精确版在同一份文本上指数回溯撞 match limit 时
+    // 才用到，见 `patterns::lazy_variant` 的注释。
+    // 注意用**渲染后**的片段文本（`format!` 里 `{{` 会变成 `{`，不能照抄字面量）。
+    let env_end_frag = env_end_custom
+        .clone()
+        .unwrap_or_else(|| r"\\end\{".to_string());
+    let env_fast_loop = format!("(?:(?&dENV)|(?!{env_end_frag}).)*");
+    let env_atomic_loop = format!("(?>(?:(?&dENV)|(?!{env_end_frag}).)*)");
+    let atomic_src = all_code_blocks_src.replace(&env_fast_loop, &env_atomic_loop);
+    debug_assert_ne!(
+        atomic_src, all_code_blocks_src,
+        "env body 循环没有被替换，原子化变体会退化成精确版"
+    );
     // 所有格兜底：把参数体循环换成「dCODE 优先 + *+」。
     // 精确版（body 优先 + `*`）照抄 Perl，能靠回溯让嵌套块不越过参数闭括号；
     // 但病态输入会指数回溯（broken.tex 的 match limit），此时回退到所有格版，
@@ -665,6 +774,10 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
     let all_code_blocks_fast =
         crate::patterns::re_new(&fast_variant(&all_code_blocks_src, &loop_pairs))
             .unwrap_or_else(|e| panic!("allCodeBlocks(所有格) 拼装失败: {e}"));
+    // 两级收紧叠加：env body 原子化 + 参数体所有格。
+    // 单独任一级都治不了「未闭合环境 + 大参数体」并存的输入（如 benchmarks 的
+    // sampleBEFORE-smaller：`\begin{exercises}` 没有对应的 `\end`）。
+    let atomic_fast_src = fast_variant(&atomic_src, &loop_pairs);
 
     // codeBlockLookFor：快速预检
     let mut look = String::from(r"[{[]|\\if");
@@ -711,7 +824,11 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
 
     PatternSet {
         all_code_blocks,
+        all_code_blocks_atomic_src: atomic_src,
+        all_code_blocks_atomic: std::sync::OnceLock::new(),
         all_code_blocks_fast,
+        all_code_blocks_atomic_fast_src: atomic_fast_src,
+        all_code_blocks_atomic_fast: std::sync::OnceLock::new(),
         code_block_look_for,
         one_arg,
         one_arg_names,
@@ -730,4 +847,44 @@ pub fn build(root: &serde_yaml::Mapping, is_m: bool) -> PatternSet {
 
 pub fn defs_pre(d_arg: &str, d_env: &str, d_if: &str, d_spn: &str, d_code: &str) -> String {
     format!("(?(DEFINE){d_arg}{d_env}{d_if}{d_spn}{d_code})")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_patterns() -> PatternSet {
+        let root = crate::settings::parse_yaml_lenient(
+            crate::settings::DEFAULT_SETTINGS_EMBEDDED,
+        )
+        .expect("embedded defaultSettings.yaml 应能解析");
+        build(&root, false)
+    }
+
+    /// 回退链的三级变体都必须真的改到了东西（否则会静默退化成同一份正则，
+    /// 撞 match limit 时等于没有兜底）。
+    #[test]
+    fn fallback_variants_are_distinct_and_compile() {
+        let p = default_patterns();
+        let accurate = p.all_code_blocks.as_str();
+
+        assert_ne!(p.all_code_blocks_atomic_src, accurate);
+        assert!(
+            p.all_code_blocks_atomic_src.contains("(?>(?:(?&dENV)"),
+            "env body 没有被原子组包起来"
+        );
+        assert!(p.all_code_blocks_atomic_src.contains("ENVBODY>(?>"));
+        assert_ne!(p.all_code_blocks_fast.as_str(), accurate);
+
+        // 原子 + 所有格：两种收紧都要在
+        assert_ne!(p.all_code_blocks_atomic_fast_src, accurate);
+        assert!(p.all_code_blocks_atomic_fast_src.contains("(?>(?:(?&dENV)"));
+
+        for which in 0..4 {
+            assert!(
+                lazy_variant(&p, which).is_some(),
+                "回退链第 {which} 级无法编译"
+            );
+        }
+    }
 }
