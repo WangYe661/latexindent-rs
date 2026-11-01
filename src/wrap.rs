@@ -253,6 +253,50 @@ fn fresh_placeholder(len: usize, avoid: &str, salt: usize) -> String {
     }
 }
 
+/// Perl Wrap.pm L458-464：句子折行用 `oneSentencePerLine.removeSentenceLineBreaks`
+/// 决定是否把内部换行合并成空格。句子先被 store 阶段折过一次，第二次折行必须先把
+/// 那次的换行合回去，否则会留下半行（issue-359a-mod4）。
+fn join_sentence_line_breaks(text: &str) -> String {
+    let on = state::settings(|s| {
+        crate::settings::as_bool(crate::settings::get_path(
+            &s.root,
+            &[
+                "modifyLineBreaks",
+                "oneSentencePerLine",
+                "removeSentenceLineBreaks",
+            ],
+        ))
+    });
+    if !on {
+        return text.to_string();
+    }
+    // 句子里出现空行 token 说明本体跨了 blocksFollow 分隔（上游会把它们拆成两个
+    // 句子对象，token 不会落在同一个 body 里）。这种拼接值不再合并换行，保持原样。
+    let blank = crate::tokens::tok(|t| t.blanklines.clone());
+    if text.contains(&blank) {
+        return text.to_string();
+    }
+    let r = re(r"(?s)\R(?!\Z)");
+    let joined = replace_all_with(text, &r, |_| " ".to_string());
+    // Perl Wrap.pm L466-468：`multipleSpacesToSingle` 在折行前把连续空白压成一个
+    // 空格（默认 1）——上一步插的空格会与已前缀的 subsequentSpace 叠成两个。
+    let multi = state::settings(|s| {
+        crate::settings::as_bool(crate::settings::get_path(
+            &s.root,
+            &[
+                "modifyLineBreaks",
+                "textWrapOptions",
+                "multipleSpacesToSingle",
+            ],
+        ))
+    });
+    if multi {
+        let r = re(r"\h{2,}");
+        return replace_all_with(&joined, &r, |_| " ".to_string());
+    }
+    joined
+}
+
 /// 句子折行（one-sentence-per-line 的 textWrapSentences）。
 ///
 /// Perl Wrap.pm L336-345：`when: after` 时先把 `follows` **最后一行**的宽度折算成
@@ -267,18 +311,14 @@ pub fn text_wrap_sentence(value: &str, follows: &str) -> String {
     // 「先摘出、折完再挂到末尾」。少了这一步，句子中间（例如 `\begin{equation*}%`）
     // 的注释会留在原位，与 Perl 的输出分叉（opl/kiryph-mod1）。
     let (text, trailing_comments) = take_trailing_comments(value);
+    let text = join_sentence_line_breaks(&text);
     // ⚠️ 这段缩进折算只在 `when: after` 生效（Perl 把它放在 `if (when eq 'after')` 里）。
     // 默认 `when: before` 时 `subsequentSpace` 为空，列宽就是 columns 本身；
     // 无条件扣减会让 before 模式的句子提前折行（opl_after_loop 之外的用例全崩）。
     let wrapped = if !tw(|m| as_str(get_opt(m, "when")).unwrap_or("before") == "after") {
         wrap_text(&text, clamp_usize(columns.max(0)))
     } else {
-        let last = follows.split(['\n', '\r']).next_back().unwrap_or("");
-        let n_tabs = last.matches('\t').count();
-        let mut space = " ".repeat(width(last));
-        for _ in 0..n_tabs {
-            space = space.replacen(' ', "    ", 1);
-        }
+        let space = subsequent_space(follows);
         let sub = to_i64(space.chars().count());
         wrap_text(&text, clamp_usize((columns - sub).max(0)))
     };
@@ -288,6 +328,54 @@ pub fn text_wrap_sentence(value: &str, follows: &str) -> String {
     // Perl：`s/\R?$/$trailingComments\n/s`
     let r = re(r"(?s)\R?$");
     replace_all_with(&wrapped, &r, |_| format!("{trailing_comments}\n"))
+}
+
+/// Perl Wrap.pm L303-314：句子对象的 `subsequentSpace` = `follows` **最后一行**
+/// （`split(/\R/)` 丢弃尾部空字段）的宽度，再按 tab 数把空格折成 4 个。
+fn subsequent_space(follows: &str) -> String {
+    let last = perl_split_last(follows);
+    let n_tabs = last.matches('\t').count();
+    let mut space = " ".repeat(width(last));
+    for _ in 0..n_tabs {
+        space = space.replacen(' ', "    ", 1);
+    }
+    space
+}
+
+/// 句子在**缩进前**的那一次折行（Perl `Sentence.pm:484-495` 的
+/// `tasks_particular_to_each_object`）。上游对每个句子折两次：先在 store 阶段用
+/// `follows`（块首 token）算 subsequentSpace 折一次并把 subsequentSpace 前缀到每行，
+/// 再在 `mlb_one_sentence_per_line_indent` 里用真实缩进折一次。少了第一次，第二次
+/// 的首行宽度会多 1 列，边界处会多塞一个词（issue-359a-mod4、issue-389l-mod2）。
+pub fn text_wrap_sentence_before_indent(value: &str, follows: &str) -> String {
+    let columns = tw(|m| as_i64(get_opt(m, "columns")).unwrap_or(0));
+    if columns == 0 {
+        return value.to_string();
+    }
+    // Perl 只在 `when: after` 时用 `follows` 折算 subsequentSpace；`before` 模式下
+    // subsequentSpace 恒为空、列宽就是 columns（Wrap.pm L291-403）。
+    let space = if tw(|m| as_str(get_opt(m, "when")).unwrap_or("before") == "after")
+        && !follows.is_empty()
+    {
+        subsequent_space(follows)
+    } else {
+        String::new()
+    };
+    let (text, trailing_comments) = take_trailing_comments(value);
+    let text = join_sentence_line_breaks(&text);
+    let sub = to_i64(space.chars().count());
+    let wrapped = wrap_text(&text, clamp_usize((columns - sub).max(0)));
+    // Perl：`s/^/$subsequentSpace/mg` 后**不**去掉首行缩进（sentence 分支例外）
+    let mut out = if space.is_empty() {
+        wrapped
+    } else {
+        replace_all_with(&wrapped, &re(r"(?m)^"), |_| space.clone())
+    };
+    if !trailing_comments.is_empty() {
+        let r = re(r"(?s)\R?$");
+        out = replace_all_with(&out, &r, |_| format!("{trailing_comments}\n"));
+    }
+    out
 }
 
 /// 把块内所有尾注释 token 摘出来（Perl Wrap.pm「now we put all of the trailing
@@ -488,7 +576,15 @@ pub fn text_wrap(body: &str) -> String {
         if let Some(o) = other_regex(&b) {
             parts.push(format!(r"\R?{o}"));
         }
-        parts.join("|")
+        if parts.is_empty() {
+            String::new()
+        } else {
+            // Perl 侧每个分支都是 qr 对象，插值后整体成为一组；外层调用再补 `\s*`
+            // 时，`\s*` 必须作用于**所有**分支。少了这层括号，`\s*` 只会粘到第一个
+            // 分支上，`\begin{` 之类就吃不到前面的换行/缩进，块尾切分点偏后 → 折行
+            // 时把 `\begin{itemize}` 合并进上一段（documentation/manual、text-wrap）。
+            format!("(?:{})", parts.join("|"))
+        }
     });
 
     // 块切分（Perl split：空匹配不作分隔符；分隔符整体进奇数位）
@@ -545,6 +641,7 @@ pub fn text_wrap(body: &str) -> String {
         // 第二行起会顶格（documentation/manual 的 s*.tex 全部不是不动点）。
         let mut subsequent_space = String::new();
         let mut first_line_columns = 0usize;
+        let mut wrap_columns = columns;
         if when_after {
             let prev = if wrap_count >= 1 {
                 raw[usize::try_from(wrap_count - 1).unwrap_or(0)].as_str()
@@ -599,13 +696,16 @@ pub fn text_wrap(body: &str) -> String {
                         }
                     }
                 }
+                // Perl 在**把 4 空格折回 tab 之前**就用 `length($subsequentSpace)` 定列宽
+                // （Wrap.pm L396 vs L399-401）。顺序反了会让 `\t\item[` 这类块的
+                // wrap 列宽多出 3 列（issue-499）。
+                wrap_columns = columns.saturating_sub(subsequent_space.chars().count());
                 let n_tabs = thing.matches('\t').count();
                 for _ in 0..n_tabs {
                     subsequent_space = subsequent_space.replacen("    ", "\t", 1);
                 }
             }
         }
-        let wrap_columns = columns.saturating_sub(subsequent_space.len());
 
         // 截尾（blocksEndBefore）
         let mut tail = String::new();
@@ -708,7 +808,9 @@ pub fn text_wrap(body: &str) -> String {
                 lead
             };
             // 列宽扣掉块尾最后一行的宽度（Perl 用 get_column_width）
-            let last_w = width(text.split('\n').next_back().unwrap_or(""));
+            // Perl `split(/\R/, $s)[-1]` 会**丢弃尾部空字段**；Rust 的 split 保留，
+            // 直接取 last() 会在文本以换行结尾时得到空串、列宽不扣减（issue-389a）。
+            let last_w = width(perl_split_last(&text));
             let ccols = clamp_usize(columns_i - to_i64(last_w));
             let wrapped = wrap_text(&comment_value, ccols);
             let mut it = wrapped.split('\n');
@@ -722,7 +824,9 @@ pub fn text_wrap(body: &str) -> String {
             let id2 = crate::trailing_comments::add_comment_symbol(&format!(
                 "{leading_comment_space}{rest}"
             ));
-            trailing_comments = format!("%{id1}\n%{id2}");
+            // Perl Wrap.pm L623-625：第二行前面要补 `subsequentSpace`，
+            // 否则 `when: after` 时注释块会顶格（issue-389c-mod2）。
+            trailing_comments = format!("%{id1}\n{subsequent_space}%{id2}");
         }
 
         if !trailing_comments.is_empty() {
@@ -774,6 +878,11 @@ fn remove_first_match(text: &str, re: &Regex) -> String {
         }
         _ => text.to_string(),
     }
+}
+
+/// Perl `split(/\R/, $s)[-1]`：尾部的空字段会被丢弃，所以取最后一个非空段。
+fn perl_split_last(s: &str) -> &str {
+    s.split('\n').rev().find(|p| !p.is_empty()).unwrap_or("")
 }
 
 /// 该行（trim 后）是否整体是一条尾注释。

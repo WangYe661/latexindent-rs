@@ -156,14 +156,16 @@ latexindent-rs -k myfile.tex
 cargo test
 ```
 
-当前结果：**268 个测试通过，0 失败，8 个标记为 `#[ignore]`**。
-`cargo test -- --ignored` 可查看这些已知缺口。
+当前结果：**278 个测试通过，0 失败，1 个标记为 `#[ignore]`**。
+`cargo test -- --ignored` 可查看该已知缺口。
 
 ## 已知限制
 
 - **本项目相较于原项目速度提升低于预期。**
-- `-r` / `-rv` / `-rr` 替换模式中，Perl 的 `/e`（在替换里执行代码）尚未实现。
-  上游若干用例的替换规则依赖 `/e`，对应 7 个测试保持 `#[ignore]`。
+- `-r` / `-rv` / `-rr` 替换模式中，Perl 的 `/e` 由原生代码模拟而非 Perl 解释器：
+  `src/replacement_e.rs` 识别上游测试集里用到的 eval 代码块（ruler 生成、
+  `\draw`/prooftree 对齐、`cmhlistings` 展平、数学公式规范化）并用 Rust 逐字节复刻。
+  未识别的 `/e` 替换会输出警告并保持原文不变，因此仍不支持任意用户 Perl。
 - 上游 Perl 正则的 `PRUNE` 泄漏属于引擎自身行为，PCRE2 无法复现；仅 trace
   日志中 `found:` 的记录不同，格式化产物完全一致（1 个测试 `#[ignore]`）。
 
@@ -182,6 +184,7 @@ cargo test
 | `src/verbatim.rs` | `Verbatim.pm`：verbatim / noindentblock 保护 |
 | `src/file_contents.rs` | `FileContents.pm`：filecontents 与 preamble |
 | `src/replacement.rs` | `Replacement.pm`：`-r` 系列替换 |
+| `src/replacement_e.rs` | Perl `/e` 替换片段的原生 handler |
 | `src/heading.rs` | `Heading.pm`：标题后的缩进 |
 | `src/sentence.rs` | `Sentence.pm`：one-sentence-per-line |
 | `src/wrap.rs` | `Wrap.pm`：text wrap |

@@ -106,9 +106,8 @@ fn replacement_cases() {
 }
 
 // ---------------------------------------------------------------------------
-// T2 依赖的 6 条（上游 L66 / L78-80 / L83 / L89，均引用带 `/e` 的替换 YAML；
-// 见 `doc/verify/09-test-porting-audit.md` §3.2 与 `doc/pending-work.md` T2）。
-// 断言已按上游原样搬运，当前默认不执行。
+// `/e` 替换用例（上游 L66 / L78-80 / L83 / L89，均引用带 `/e` 的替换 YAML）。
+// 由 `src/replacement_e.rs` 的原生 handler 实现。
 // ---------------------------------------------------------------------------
 
 const E_CASES: &[RCase] = &[
@@ -149,8 +148,7 @@ const E_CASES: &[RCase] = &[
 ];
 
 #[test]
-#[ignore = "T2 依赖：-r substitution 的 Perl /e（见 doc/pending-work.md T2）未实现"]
-fn replacement_e_cases_pending() {
+fn replacement_e_cases() {
     for c in E_CASES {
         run_case(c);
     }

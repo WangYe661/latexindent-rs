@@ -262,11 +262,17 @@ pub fn one_sentence_per_line(body: &str) -> String {
             format!("{}{}{}", t.sentence, s.sentence_counter, t.end_of_token)
         });
         if sentence_work_after_indentation {
-            // 句子缩进/折行延后到 mlb_one_sentence_per_line_indent
+            // 句子缩进/折行延后到 mlb_one_sentence_per_line_indent。
+            // 但上游在 store 阶段就会先用 `follows` 折一次（Sentence.pm:484-495），
+            // 这次折行把 subsequentSpace 前缀进正文，第二次折行的首行因此少 1 列。
+            let mut value = format!("{middle}{end}");
+            if cfg_wrap_sentences {
+                value = crate::wrap::text_wrap_sentence_before_indent(&value, &beginning);
+            }
             state::storage(|s| {
                 s.sentences.push(SentenceObj {
                     id: id.clone(),
-                    value: format!("{middle}{end}"),
+                    value,
                     follows: beginning.clone(),
                 });
             });

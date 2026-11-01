@@ -9,9 +9,10 @@ use crate::tokens::tok;
 
 fn create_unique_id(typ: &str) -> String {
     let t = tok(|t| t.clone());
+    // Perl Verbatim.pm:649-658：全局单调计数器（不是 `len + 1`）。
     let counter = state::storage(|s| {
-        let n = s.verbatim.len() + s.filecontents.len() + 1;
-        n
+        s.verbatim_counter += 1;
+        s.verbatim_counter
     });
     let prefix = if typ == "command" {
         t.verbatim_inline
@@ -250,19 +251,14 @@ pub fn find_verbatim_commands(body: &str) -> String {
             let hs = crate::patterns::gs(caps, "HS").unwrap_or("").to_string();
             let lb = crate::patterns::gs(caps, "LB").unwrap_or("").to_string();
             let name = crate::patterns::gs(caps, "N").unwrap_or("").to_string();
-            // 嵌套 \verb：还原内层并回收
-            if nested_re.is_match(b.as_bytes()).unwrap_or(false) {
-                let ids: Vec<String> = state::storage(|s| s.verbatim.keys().cloned().collect());
-                for id in ids {
-                    if b.contains(&id) {
-                        let inner = state::storage(|s| s.verbatim.remove(&id));
-                        if let Some(inner) = inner {
-                            b = b.replace(
-                                &id,
-                                &format!("{}{}{}", inner.begin, inner.body, inner.end),
-                            );
-                        }
-                    }
+            // 嵌套 \verb：还原内层并回收（Perl Verbatim.pm:371-380 只处理**一个**，
+            // 且 `s/$id/$body/s` 不带 /g，只替换首次出现）
+            if let Ok(Some(m)) = nested_re.find(b.as_bytes()) {
+                let id = String::from_utf8_lossy(m.as_bytes()).into_owned();
+                let inner = state::storage(|s| s.verbatim.remove(&id));
+                if let Some(inner) = inner {
+                    let inline = format!("{}{}{}", inner.begin, inner.body, inner.end);
+                    b = b.replacen(&id, &inline, 1);
                 }
             }
             let begin = format!(

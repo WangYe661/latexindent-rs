@@ -35,7 +35,6 @@ fn lines_3_5() {
 }
 
 #[test]
-#[ignore = "known gap: -r substitution 带 /e（text-wrap-4.yaml 的 ruler 替换是 Perl eval 代码块），用户明确暂缓"]
 fn text_wrap_jowens_short_ruler() {
     check(
         "text-wrap",
@@ -768,17 +767,17 @@ fn run_group(group: &str) {
 }
 
 // ---------------------------------------------------------------------------
-// T2 依赖用例：上游脚本中 64 条 `-r` + `/e`（ruler 替换）调用 + 2 条无产物调用
+// `-r` + `/e`（ruler 替换）用例：上游脚本 64 条调用 + 2 条无产物调用
 // （`doc/verify/09-test-porting-audit.md` §3.2；本次搬运前完全未写成断言）。
 //
 // - 7 条 `tw-tc1..7`（`columns:-1`，不含 `/e`）本来就已由 `columns-m1` 组覆盖，
-//   这里仅为对齐上游脚本行号而重复列出，归入非 ignore 的 `text_wrap_e_dependent`。
-// - 其余 57 条全部依赖 `-r` substitution 的 Perl `/e`（addruler1/2/3、
-//   issue-359*、issue-444*、issue-450*、issue-389* 等 YAML），当前引擎不支持 `/e`
-//   → 归入 `text_wrap_e_dependent_pending`（`#[ignore]`），待 T2 决策后统一启用。
+//   这里仅为对齐上游脚本行号而重复列出。
+// - 其余 57 条依赖 addruler1/2/3、issue-359*、issue-444*、issue-450*、issue-389*
+//   等 YAML 的 `/e` ruler 替换。`/e` 已由 `src/replacement_e.rs` 原生实现，
+//   全部 57 条已并入 `text_wrap_e_dependent`，`E_PENDING` 现为空。
 // ---------------------------------------------------------------------------
 
-/// 一条 T2 用例：输入、参数、产物（基准）。
+/// 一条 `-r` + `/e` 用例：输入、参数、产物（基准）。
 fn build_e_cases() -> Vec<WCase> {
     let mut v: Vec<WCase> = Vec::new();
     let cols = |n: u32| format!("modifyLineBreaks:textWrapOptions:columns:{n}");
@@ -1217,72 +1216,12 @@ fn build_e_cases() -> Vec<WCase> {
     v
 }
 
-/// T2 依赖、当前引擎不支持的用例（引用含 `/e` 的替换 YAML）。
-/// 列出的产物在 `text_wrap_e_dependent_pending`（`#[ignore]`）中执行；启用 T2 后把它们
-/// 清空即可让这些断言并入 `text_wrap_e_dependent`。
-const E_PENDING: &[&str] = &[
-    "textwrap-bfccb-mod1.tex",
-    "textwrap-bfccb-mod2.tex",
-    "textwrap-bfccb1-mod1.tex",
-    "textwrap-bfccb1-mod2.tex",
-    "textwrap-bfccb1-mod3.tex",
-    "textwrap-bfccb2-mod1.tex",
-    "issue-306-mod1.tex",
-    "issue-359a-mod1.tex",
-    "issue-359b-mod1.tex",
-    "issue-359c-mod1.tex",
-    "issue-359a-mod2.tex",
-    "issue-359b-mod2.tex",
-    "issue-359c-mod2.tex",
-    "issue-359a-mod3.tex",
-    "issue-359b-mod3.tex",
-    "issue-359c-mod3.tex",
-    "issue-359a-mod4.tex",
-    "issue-359a-mod5.tex",
-    "issue-359a-mod6.tex",
-    "issue-359d-mod1.tex",
-    "issue-359d-mod2.tex",
-    "issue-359e-mod1.tex",
-    "issue-359e-mod2.tex",
-    "issue-356-mod1.tex",
-    "issue-356-mod2.tex",
-    "issue-389a-mod1.tex",
-    "issue-389b-mod1.tex",
-    "issue-389c-mod1.tex",
-    "issue-389c-mod2.tex",
-    "issue-389d-mod1.tex",
-    "issue-389e-mod1.tex",
-    "issue-389e-mod2.tex",
-    "issue-389f-mod1.tex",
-    "issue-389g-mod2.tex",
-    "issue-389h-mod2.tex",
-    "issue-389i-mod2.tex",
-    "issue-389j-mod2.tex",
-    "issue-389k-mod2.tex",
-    "issue-389l-mod2.tex",
-    "issue-389l-mod3.tex",
-    "issue-444a-mod1.tex",
-    "issue-444b-mod1.tex",
-    "issue-444b-mod2.tex",
-    "issue-444b-mod3.tex",
-    "issue-444b-mod4.tex",
-    "issue-444b-mod5.tex",
-    "issue-444c-mod1.tex",
-    "issue-450a-mod1.tex",
-    "issue-450b-mod1.tex",
-    "issue-450c-mod1.tex",
-    "issue-450d-mod1.tex",
-    "issue-450e-mod1.tex",
-    "issue-450f-mod1.tex",
-    "issue-499-mod1.tex",
-    "issue-499-mod2.tex",
-    "issue-502-mod1.tex",
-    "issue-502a-mod1.tex",
-];
+/// 当前没有待挂起的 `-r` + `/e` 用例（全部已对齐）。
+const E_PENDING: &[&str] = &[];
 
-fn run_e_cases(pending: bool) {
+fn run_e_cases() {
     for c in build_e_cases() {
-        if E_PENDING.contains(&c.expected.as_str()) != pending {
+        if E_PENDING.contains(&c.expected.as_str()) {
             continue;
         }
         check_owned("text-wrap", &c.input, &c.args, &c.expected);
@@ -1290,17 +1229,10 @@ fn run_e_cases(pending: bool) {
     report();
 }
 
-/// 非 `/e` 部分（tw-tc 7 条）。
+/// `-r` + `/e`（ruler 替换）的 57 条用例，全部已对齐。
 #[test]
 fn text_wrap_e_dependent() {
-    run_e_cases(false);
-}
-
-/// T2 依赖的 57 条（`-r` + `/e`）。
-#[test]
-#[ignore = "T2 依赖：-r substitution 的 Perl /e（ruler 替换，见 doc/pending-work.md T2）未实现"]
-fn text_wrap_e_dependent_pending() {
-    run_e_cases(true);
+    run_e_cases();
 }
 
 /// 上游 L165 / L285：两条不落产物的调用（`doc/verify/09-test-porting-audit.md` §3.2 的

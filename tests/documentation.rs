@@ -20,30 +20,11 @@ const DIR: &str = "documentation/demonstrations";
 /// 一条演示用例：输入、参数、产物（基准）。
 type Demo = (&'static str, &'static [&'static str], &'static str);
 
-/// 与基准不一致、暂时挂起的产物名（搬运完成、实现缺口留待统一清理）。
-const PENDING: &[&str] = &[
-    // T2 依赖：`-r` + addruler1/addruler2 的 `/e` ruler 替换（11 条）
-    "textwrap-bfccb-mod12.tex",
-    "textwrap-bfccb-mod13.tex",
-    "textwrap-bfccb-mod14.tex",
-    "textwrap8-mod1.tex",
-    "textwrap8-mod2.tex",
-    "multiple-sentences8-mod1.tex",
-    "multiple-sentences8-mod2.tex",
-    "textwrap9-mod1.tex",
-    "textwrap10-mod1.tex",
-    "textwrap10-mod2.tex",
-    "multiple-sentences9-mod1.tex",
-];
-
 /// 需要整目录夹具（`paths:` 传递引用同目录其它 YAML）的输入。
 const FULL_DIR_INPUTS: &[&str] = &["paths-demo.tex"];
 
-fn run_demos(pending: bool) {
+fn run_demos() {
     for (input, args, expected) in DEMOS {
-        if PENDING.contains(expected) != pending {
-            continue;
-        }
         if FULL_DIR_INPUTS.contains(input) {
             let case = common::run_full_dir(
                 DIR,
@@ -67,17 +48,10 @@ fn run_demos(pending: bool) {
     report();
 }
 
-/// 上游 `documentation-test-cases.sh` 的 330 条演示调用（L406 死行除外）。
+/// 演示用例：331 条上游调用；`/e` ruler 替换已由 `src/replacement_e.rs` 实现，全部转正。
 #[test]
 fn documentation_demos() {
-    run_demos(false);
-}
-
-/// 挂起条目：仅剩 T2 `/e`（`-r` substitution 的 Perl eval）依赖的产物。
-#[test]
-#[ignore = "T2 依赖：-r substitution 的 Perl /e（addruler ruler 替换）未实现"]
-fn documentation_demos_pending() {
-    run_demos(true);
+    run_demos();
 }
 
 const DEMOS: &[Demo] = &[
@@ -551,13 +525,9 @@ fn documentation_missing_input_is_fatal() {
 
 /// `latexindent.pl -l=+mainfile.yaml -w -rv -m -s latexindent.tex`
 ///
-/// ⚠️ 未对齐原因：doc-indent.sh 用到的 `manual/latexindent.yaml` 在
-/// `replacements.substitution` 里写了 Perl `/e` 代码块（`s/.../my $body = $1; .../segx`），
-/// 属于 T2 `/e` 缺口。主文件 latexindent.tex 与 bib 已是不动点，s*.tex 因该替换
-/// 全部不是不动点，故整条用例随 T2 挂起。
+/// 手册源码原地格式化（不动点断言）：主文件 + 全部 `s*.tex` + `*.bib`。
 #[test]
-#[ignore = "T2 依赖：manual/latexindent.yaml 的 -r substitution 含 Perl /e 代码块"]
-fn documentation_manual_sources_pending() {
+fn documentation_manual_sources() {
     const MANUAL: &str = "documentation/manual";
 
     // 1) 主文件（-l=+mainfile.yaml 会连带加载 ./latexindent.yaml）

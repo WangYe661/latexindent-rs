@@ -65,7 +65,7 @@ fn trailing_comment_re() -> Regex {
 
 /// 量宽（对应 Perl get_column_width）：默认字素簇计数（\X）；
 /// `--GCString` 时用 Unicode::GCString->columns() 语义（东亚宽/全角记 2 列）
-fn width(s: &str) -> usize {
+pub(crate) fn width(s: &str) -> usize {
     use unicode_segmentation::UnicodeSegmentation;
     if crate::switches::with(|sw| sw.gcstring) {
         s.graphemes(true).map(gc_columns).sum()

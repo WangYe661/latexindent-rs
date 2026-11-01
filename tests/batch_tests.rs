@@ -209,7 +209,6 @@ fn fatal_files() {
 
 /// -l documentation.yaml -rv -w -m doc*.tex。
 #[test]
-#[ignore = "known gap: -r substitution 带 /e（Perl eval 代码块）未实现，见 documentation.yaml 第 4 条替换"]
 fn replacement_mode() {
     let s = Session::new(DIR, &[]);
     let docs = glob(&s, "doc", ".tex");

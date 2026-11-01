@@ -10,6 +10,7 @@ mod mlb;
 mod num;
 mod patterns;
 mod replacement;
+mod replacement_e;
 mod sentence;
 mod settings;
 mod state;

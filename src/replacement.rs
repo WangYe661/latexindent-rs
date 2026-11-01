@@ -127,6 +127,19 @@ fn apply_substitution(body: &str, sub: &str) -> String {
             return body.to_string();
         }
     };
+    // `/e`：替换串是 Perl 代码。Rust 侧只对已知模板提供逐字节等价的原生实现，
+    // 未识别时警告并保持原文不变（上游 eval 失败也是静默不改）。
+    let eval_handler = if flags.contains('e') {
+        crate::replacement_e::eval_replacement(rep)
+    } else {
+        None
+    };
+    if flags.contains('e') && eval_handler.is_none() {
+        logger::warn(&format!(
+            "*Perl /e substitution is not supported; the text is left unchanged: {sub}"
+        ));
+        return body.to_string();
+    }
     let expand = |caps: &pcre2::bytes::Captures| -> String {
         // Perl 替换串（非 /e）语义 = 双引号串：转义字符、$1 引用、\u\l\U\L 大小写
         // 修饰符、\Q...\E quotemeta（Perl 5.16+ 非 ASCII 也转义）。
@@ -295,8 +308,12 @@ fn apply_substitution(body: &str, sub: &str) -> String {
         }
         out
     };
+    let expand: Box<dyn Fn(&pcre2::bytes::Captures) -> String> = match eval_handler {
+        Some(f) => f,
+        None => Box::new(expand),
+    };
     if flags.contains('g') {
-        crate::patterns::replace_all_with(body, &re, expand)
+        crate::patterns::replace_all_with(body, &re, |c| expand(c))
     } else {
         let mut done = false;
         crate::patterns::replace_all_with(body, &re, |caps| {

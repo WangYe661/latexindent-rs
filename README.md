@@ -173,15 +173,18 @@ is compared byte-for-byte against the baseline file.
 cargo test
 ```
 
-Current result: **268 tests passed, 0 failed, 8 marked `#[ignore]`**. Run
-`cargo test -- --ignored` to see these known gaps.
+Current result: **278 tests passed, 0 failed, 1 marked `#[ignore]`**. Run
+`cargo test -- --ignored` to see this known gap.
 
 ## Known Limitations
 
 - **The speed improvement over the original project is lower than expected.**
-- Perl's `/e` (execute code inside a substitution) is not implemented in
-  `-r` / `-rv` / `-rr` replacement mode. Several upstream test cases depend on
-  `/e` in their replacement rules, so 7 tests remain `#[ignore]`.
+- Perl's `/e` (execute code inside a substitution) is emulated natively, not by a
+  Perl interpreter: `src/replacement_e.rs` recognises the eval snippets used by
+  upstream's test corpus (ruler generation, `\draw`/prooftree alignment,
+  `cmhlistings` flattening, math normalisation) and reproduces them in Rust.
+  A `substitution` with `/e` that is *not* recognised emits a warning and leaves
+  the text unchanged, so arbitrary user Perl is still unsupported.
 - The upstream Perl regex `PRUNE` leak is engine-specific behavior that PCRE2
   cannot reproduce; only the `found:` entries in the trace log differ, while the
   formatted output is identical (1 test `#[ignore]`).
@@ -202,6 +205,7 @@ implemented with byte-for-byte identical output.
 | `src/verbatim.rs` | `Verbatim.pm`: verbatim / noindentblock protection |
 | `src/file_contents.rs` | `FileContents.pm`: filecontents and preamble |
 | `src/replacement.rs` | `Replacement.pm`: `-r` replacement modes |
+| `src/replacement_e.rs` | native handlers for Perl `/e` substitution snippets |
 | `src/heading.rs` | `Heading.pm`: indentation after headings |
 | `src/sentence.rs` | `Sentence.pm`: one-sentence-per-line |
 | `src/wrap.rs` | `Wrap.pm`: text wrap |

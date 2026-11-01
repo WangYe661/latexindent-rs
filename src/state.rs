@@ -45,6 +45,11 @@ pub struct Storage {
     pub verbatim: HashMap<String, VerbatimObj>,
     pub trailing_comments: Vec<TrailingComment>,
     pub comment_counter: usize,
+    /// 对应 Perl 的 `our $verbatimCounter`：**单调递增**，不能用 `verbatim.len()`
+    /// 反推——嵌套 verbatim 命令会从存储里删条目，长度回退后新 id 会与既有 id 撞车，
+    /// 还原时把后一个对象的内容填到前一个占位符里（`\lstinline|\verb|` 变成
+    /// `\lstinline!\@if!`）。
+    pub verbatim_counter: usize,
     pub filecontents: Vec<VerbatimObj>,
     pub file_ends_with_trailing_comment: bool,
     pub align_markup_block_present: bool,

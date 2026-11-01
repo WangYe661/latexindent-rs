@@ -846,8 +846,20 @@ impl MainSettings {
         }
     }
 
-    /// yaml_get_indentation_information
+    /// yaml_get_indentation_information。
     pub fn indentation_information(&self, name: &str, thing: &str, yaml_name: &str) -> String {
+        self.indentation_information_with_rule(name, thing, yaml_name)
+            .0
+    }
+
+    /// 同上，并返回「是否命中了 indentation 规则」（对应 Perl 的 `defined $self->{indentRule}`）。
+    /// text_wrap 的 `textWrapAfter` 缓存只在命中规则时才写入。
+    pub fn indentation_information_with_rule(
+        &self,
+        name: &str,
+        thing: &str,
+        yaml_name: &str,
+    ) -> (String, bool) {
         let name = if name.is_empty() {
             "always-un-named"
         } else {
@@ -861,11 +873,11 @@ impl MainSettings {
                 };
                 if let Some(v) = val {
                     match about {
-                        "noAdditionalIndent" if as_bool(Some(v)) => return String::new(),
+                        "noAdditionalIndent" if as_bool(Some(v)) => return (String::new(), true),
                         "indentRules" => {
                             if let Some(s) = as_str(Some(v)) {
                                 if is_hspace(s) || s.is_empty() {
-                                    return s.to_string();
+                                    return (s.to_string(), true);
                                 }
                             }
                         }
@@ -880,11 +892,11 @@ impl MainSettings {
         ] {
             if let Some(v) = get_path(&self.root, &[about, yaml_name]) {
                 match kind {
-                    "noAdditionalIndentGlobal" if as_bool(Some(v)) => return String::new(),
+                    "noAdditionalIndentGlobal" if as_bool(Some(v)) => return (String::new(), true),
                     "indentRulesGlobal" => {
                         if let Some(s) = as_str(Some(v)) {
                             if is_hspace(s) {
-                                return s.to_string();
+                                return (s.to_string(), true);
                             }
                             if s != "0" {
                                 logger::warn(&format!(
@@ -901,9 +913,10 @@ impl MainSettings {
                 }
             }
         }
-        as_str(get(&self.root, "defaultIndent"))
+        let indentation = as_str(get(&self.root, "defaultIndent"))
             .unwrap_or("\t")
-            .to_string()
+            .to_string();
+        (indentation, false)
     }
 
     /// yaml_poly_switch_get_every_or_custom_value
@@ -993,7 +1006,9 @@ impl MainSettings {
             "body"
         };
         let mut os = ObjectSettings::default();
-        os.indentation = self.indentation_information(name, thing, yaml_name);
+        let (indentation, rule_matched) =
+            self.indentation_information_with_rule(name, thing, yaml_name);
+        os.indentation = indentation;
         if let Some(align) = self.alignment_settings(name) {
             // Perl：$lookForAlignDelims = previouslyFound{lookForAlignDelims}（即 delims 键），
             // 映射形 delims: 0 虽带其它对齐设置也整体关闭对齐
@@ -1069,54 +1084,27 @@ impl MainSettings {
             }
         }
         self.previously_found.insert(storage_name, os.clone());
-        // Perl yaml_get_indentation_settings_for_this_object：`-m` + `when: after` 时把
-        // 「按名生效的自定义缩进」另存到 `{textWrapAfter}{$name}`（供 text_wrap 的
-        // indentRules 分支使用）。判定与 Perl 的 $self->{indentRule} 一致：
-        // 只认 per-name 的 noAdditionalIndent / indentRules（global 不记录）。
+        // Perl yaml_get_indentation_settings_for_this_object L1398-1404：`-m` + `when: after`
+        // 且 `defined $self->{indentRule}` 时，把该对象的 `indentation` 存进
+        // `{textWrapAfter}{$name}`（供 text_wrap 的 indentRules 分支使用）。
+        // 上游 `indentRule` 在四处被赋值：per-name 的 noAdditionalIndent / indentRules，
+        // 以及 **global** 的 noAdditionalIndentGlobal / indentRulesGlobal —— 少记 global
+        // 会让 `indentRules: item: 0` + `noAdditionalIndentGlobal: items: 1` 这类组合
+        // 拿不到规则，subsequentSpace 多算（issue-444b-mod4）。
         if is_m
+            && rule_matched
             && as_str(get_path(
                 &self.root,
                 &["modifyLineBreaks", "textWrapOptions", "when"],
             )) == Some("after")
         {
-            let lookup = if name.is_empty() {
-                "always-un-named"
-            } else {
-                name
-            };
-            let rule_indent: Option<String> =
-                if let Some(entry) = get_path(&self.root, &["noAdditionalIndent", lookup]) {
-                    let v = match entry.as_mapping() {
-                        Some(m) => get(m, thing),
-                        None => Some(entry),
-                    };
-                    match v {
-                        Some(v) if as_bool(Some(v)) => Some(String::new()),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-                .or_else(|| {
-                    get_path(&self.root, &["indentRules", lookup]).and_then(|entry| {
-                        let v = match entry.as_mapping() {
-                            Some(m) => get(m, thing),
-                            None => Some(entry),
-                        };
-                        v.and_then(|v| as_str(Some(v)))
-                            .filter(|s| is_hspace(s) || s.is_empty())
-                            .map(|s| s.to_string())
-                    })
-                });
-            if let Some(ind) = rule_indent {
-                self.previously_found.insert(
-                    format!("textWrapAfter{name}"),
-                    ObjectSettings {
-                        indentation: ind,
-                        ..ObjectSettings::default()
-                    },
-                );
-            }
+            self.previously_found.insert(
+                format!("textWrapAfter{name}"),
+                ObjectSettings {
+                    indentation: os.indentation.clone(),
+                    ..ObjectSettings::default()
+                },
+            );
         }
         os
     }
@@ -1366,6 +1354,30 @@ pub fn read_settings(
     }
 
     yaml_obsolete_checks(root);
+
+    // GetYamlSettings.pm L875-892：`-m` + `textWrapOptions: when: after` 与
+    // `oneSentencePerLine: sentenceIndent` 不兼容——上游把 sentenceIndent 清空并告警。
+    // 少了这条，句子折行的续行会多出一个 sentenceIndent（issue-359d）。
+    if crate::switches::with(|s| s.is_m_switch_active())
+        && get_path(root, &["modifyLineBreaks", "textWrapOptions", "when"])
+            .and_then(|v| v.as_str())
+            .map_or(false, |w| w == "after")
+        && get_path(
+            root,
+            &["modifyLineBreaks", "oneSentencePerLine", "sentenceIndent"],
+        )
+        .and_then(|v| v.as_str())
+        .map_or(false, is_hspace)
+    {
+        logger::warn(
+            "*one-sentence-per-line *ignoring* sentenceIndent, as text wrapping set to 'after'",
+        );
+        set_path(
+            root,
+            &["modifyLineBreaks", "oneSentencePerLine", "sentenceIndent"],
+            Value::String(String::new()),
+        );
+    }
 
     // fineTuning environment checks（GetYamlSettings.pm L895-908）：begin/end 只给一半时
     // 整段覆写被忽略，退回默认环境正则，并各打一条 WARN。

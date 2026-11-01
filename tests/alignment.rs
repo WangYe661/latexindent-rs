@@ -1505,9 +1505,8 @@ fn misc_script_cases_b() {
     report();
 }
 
-// ---- `-r` substitution 带 /e（Perl eval 代码块），用户明确暂缓 ----
+// ---- `-r` substitution 带 /e（Perl eval 代码块），已由 src/replacement_e.rs 原生实现 ----
 #[test]
-#[ignore = "known gap: -r substitution 带 /e（issue-382/te-752552a 的替换是 Perl eval 代码块），用户明确暂缓"]
 fn misc_e_substitution_cases() {
     let d = "alignment";
     check_owned(
